@@ -1,4 +1,4 @@
-# Mini-Bloomberg
+# MINIBB-V2 — Mini-Bloomberg
 
 A CLI terminal that mimics Bloomberg for equity and FX analysis, powered by **OpenBB + FMP + yfinance** for data and **Claude** as a natural-language orchestrator.
 
@@ -149,7 +149,7 @@ GitHub Actions runs the same unit test suite on pushes and pull requests.
 ### 2. Install
 
 ```bash
-git clone https://github.com/stewieee358/MINIBB.git
+git clone https://github.com/stewieee358/MINIBB-V2.git MINIBB
 cd MINIBB
 uv sync --locked --extra dev
 ```
