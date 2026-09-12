@@ -43,7 +43,7 @@ MINI-BB> ? compare NVDA and AMD profitability <GO>
 | Operator List | Search registered operators, signatures, categories, implementation notes, and connected fields in the web interface; use `ALPHA --operators` in the terminal |
 | Data Coverage and results | Inspect field coverage, provider and date provenance, IC, Rank IC, information ratios, latest rankings, and quintile/long-short curves |
 | `NEWS` | Retrieve company headlines with publication dates and summaries |
-| `DCF` | Run standalone cash-flow valuation, including WACC, FCFF projections, fair value, and sensitivity analysis, without generating an RPT or requesting AI insights |
+| `DCF` command | New standalone access to V1's existing valuation model, without generating an RPT or requesting AI insights; the underlying valuation algorithm is unchanged |
 | `QTR` | Inspect quarterly income statements, balance sheets, and cash flows |
 | Configurable AI endpoint | Configure the API endpoint and model through `ANTHROPIC_BASE_URL` and `CLAUDE_MODEL`; see [Setup](#setup) |
 
@@ -287,6 +287,16 @@ ANR <GO>                         Analyst ratings
 COMP <GO>                        Peer comparison table
 RV <GO>                          Relative value — valuation vs. peers
 RPT <GO>                         Full HTML equity report → reports/<TICKER>_<DATE>.html
+NEWS --limit 10 <GO>             Recent company headlines and summaries
+DCF --years 4 <GO>               Existing DCF model, called independently of RPT
+QTR --quarters 8 <GO>            Available quarterly financial statements
+QTR --quarters 4 --statement BS <GO>   Quarterly balance sheets only
+
+── Factor research ─────────────────────────────────────────────────────────
+ALPHA <GO>                       Evaluate the default expression on market data
+ALPHA --dataset demo <GO>        Evaluate synthetic data without credentials
+ALPHA --operators <GO>           Show the operator and field reference
+ALPHA --dataset prices.csv --expression rank(ts_delta(close, 5)) <GO>
 
 ── FX ──────────────────────────────────────────────────────────────────────
 FXIP <GO>                        G10 spot rates vs USD
@@ -323,15 +333,17 @@ uv run mini-bb fa   "AAPL US Equity" --years 4
 uv run mini-bb gp   "AAPL US Equity" --days 180
 uv run mini-bb anr  "AAPL US Equity"
 uv run mini-bb comp "AAPL US Equity"
-uv run mini-bb rv   "AAPL US Equity"
-uv run mini-bb rpt  "AAPL US Equity"
 ```
+
+Only `des`, `fa`, `gp`, `anr`, and `comp` are registered as direct shell
+subcommands. For `RV`, `RPT`, `NEWS`, `DCF`, `QTR`, `ALPHA`, and FX commands,
+start `uv run mini-bb` and use the interactive prompt, or use the web command bar.
 
 ---
 
 ## Web UI
 
-Start the FastAPI server (`uvicorn mini_bloomberg.web.server:app --reload --port 8000`) and open `http://localhost:8000`.
+Start the FastAPI server (`uv run uvicorn mini_bloomberg.web.server:app --reload --port 8000`) and open `http://localhost:8000`.
 
 ```
 ┌──────────────────────────────────────────────────────────────────┐
@@ -345,6 +357,8 @@ Start the FastAPI server (`uvicorn mini_bloomberg.web.server:app --reload --port
 │  DES FA GP │  tables, │  debugging          │  or prefix cmd     │
 │  ANR COMP  │  charts, │                     │  with ?            │
 │  RV RPT    │  RPT HTML│                     │                    │
+│  NEWS DCF  │          │                     │                    │
+│  QTR ALPHA │          │                     │                    │
 │  ─────     │          │                     │  Tool call log     │
 │  FX        │          │                     │  shown here        │
 │  FXIP FXCA │          │                     │                    │
@@ -364,7 +378,7 @@ Start the FastAPI server (`uvicorn mini_bloomberg.web.server:app --reload --port
 
 ### Web UI features
 
-- **Command bar**: same Bloomberg-style syntax as the CLI — `AAPL US Equity`, `DES`, `FA`, `GP --days 90`, `? compare AAPL and MSFT`
+- **Command bar**: same Bloomberg-style syntax as the interactive CLI — `AAPL US Equity`, `NEWS --limit 10`, `DCF`, `QTR --statement IS`, `ALPHA --dataset demo`, `? compare AAPL and MSFT`
 - **Tab autocomplete**: suggests commands and tickers as you type
 - **OUTPUT tab**: formatted tables, key-value grids, rating badges, inline RPT HTML
 - **RAW DATA tab**: full JSON response for debugging
@@ -386,13 +400,17 @@ Start the FastAPI server (`uvicorn mini_bloomberg.web.server:app --reload --port
 |---|---|---|
 | Company profile | OpenBB/yfinance | OpenBB/yfinance |
 | Annual financials (FA/RPT) | FMP `/stable/income-statement` etc. | OpenBB/yfinance |
-| Quarterly financials (RPT XLSX) | OpenBB → SEC XBRL (`obb.equity.compare.company_facts`, provider `"sec"`) — no API key | yfinance `.quarterly_income_stmt` / `.quarterly_balance_sheet` |
+| Quarterly financials (QTR / RPT XLSX) | OpenBB → SEC XBRL (`obb.equity.compare.company_facts`, provider `"sec"`) — no API key | yfinance quarterly income statement, balance sheet, and cash flow |
 | Price history | FMP `/stable/historical-price-eod/full` | OpenBB/yfinance |
 | Price targets | FMP `/stable/price-target-consensus` | — |
 | Analyst ratings | OpenBB/yfinance consensus | OpenBB/yfinance |
 | Peers | FMP `/stable/stock-peers` | — |
+| Company news (NEWS / RPT) | OpenBB tries yfinance, FMP, then Benzinga | Same provider chain; coverage and credentials vary |
 
-**DCF Valuation (RPT §5)**
+**DCF Valuation (standalone DCF / RPT §5)**
+
+Both entry points call the same `compute_dcf()` implementation inherited from
+V1. The new command changes access to the model, not its assumptions or accuracy.
 
 | Data | Source | Cache TTL |
 |---|---|---|
@@ -410,6 +428,20 @@ Start the FastAPI server (`uvicorn mini_bloomberg.web.server:app --reload --port
 | Historical OHLCV (FXHV/FRD) | yfinance 1–2y history | 1h |
 | Currency performance (WCR) | yfinance 1y history | 10 min |
 | Forward rates (FRD) | CIP formula + hardcoded approx. rates | 1h |
+
+**Factor research and optional loaders**
+
+| Input | Integration status |
+|---|---|
+| FMP / OpenBB daily histories | Connected to `ALPHA --dataset market` (the default); provider/date provenance included |
+| Synthetic demo | Connected to `ALPHA --dataset demo`; deterministic generated data |
+| Local CSV | Connected to `ALPHA --dataset prices.csv`; files live in `data/factors/` |
+| Tushare / JoinQuant | Python loaders exist in `factors/data/loader.py`; optional SDKs are not declared in the default dependencies, and authenticated network behavior has not been validated |
+
+Tushare and JoinQuant are not selectable through the current ALPHA command and
+are not wired into the equity fundamentals or quarterly-report routes. Their
+presence in the factor package does not establish end-to-end A-share support.
+See [factor research documentation](docs/FACTOR_RESEARCH.md) for details.
 
 ---
 
@@ -431,7 +463,9 @@ Start the FastAPI server (`uvicorn mini_bloomberg.web.server:app --reload --port
 
 The **Insights section** (§2) makes a silent call to `claude-haiku-4-5-20251001` with recent news headlines and financial summary — cached 24h per ticker. Right-hand column shows analyst consensus (rating pill, price target, upside %) and a trading data table derived from 1-year price history.
 
-The **Valuation section** (§5) runs a full DCF model on every `RPT` call and exposes a one-click **XLSX download** with four sheets:
+The **Valuation section** (§5) uses the existing DCF model when sufficient data
+is available and exposes a one-click **XLSX download** with four sheets. This
+report capability predates V2; the standalone `DCF` command reuses its model.
 
 | Sheet | Content |
 |---|---|
@@ -457,11 +491,15 @@ Open the `.html` file in any browser. Use browser **Print → Save as PDF** for 
 
 ## AI Agent
 
-The `?` prefix routes to Claude (`claude-sonnet-4-6` by default, switchable to `claude-opus-4-7` via `CLAUDE_MODEL` in `.env`).
+The `?` prefix routes to the model selected by `CLAUDE_MODEL` in `.env`
+(`claude-sonnet-4-6` by default). The configured endpoint must support that model.
+Registered AI tools are `ALPHA`, `DES`, `FA`, `GP`, `ANR`, `COMP`, `RPT`, `RV`,
+`NEWS`, `DCF`, and `QTR`. FX commands currently have no registered AI tools.
 
 The agent uses **prompt caching** on the system prompt and **streaming output** so you see the answer token-by-token. It runs tool calls in **parallel** (e.g. `FA` for two tickers simultaneously).
 
-**Persistent memory**: the agent maintains a sliding-window conversation history within each session — it remembers earlier exchanges and can reference them without re-fetching data.
+**Session memory**: the agent maintains a sliding-window conversation history
+within each session. This is not durable storage across process restarts.
 
 ```
 MINI-BB> ? what is AAPL's revenue trend? <GO>
@@ -480,6 +518,7 @@ MINI-BB> CLEAR HISTORY <GO>                        ← wipe memory for a fresh s
 
 ```
 Data        openbb, httpx, pydantic, diskcache
+Factors     pandas, numpy, restricted expression interpreter
 CLI         typer, rich, plotext, prompt-toolkit
 Web         fastapi, uvicorn
 LLM         anthropic (claude-sonnet-4-6 / claude-haiku-4-5 for RPT insights)
@@ -491,16 +530,17 @@ Infra       uv, python-dotenv, pytest
 ## Known limitations
 
 **Equity**
-- **Chinese A-shares**: requires tushare/akshare — not supported
+- **Chinese A-shares**: the ticker mapper includes a limited Shanghai (`CN` → `.SS`) route via existing providers, but broad A-share coverage is unverified. Tushare and JoinQuant factor loaders exist but are not connected to the terminal data routes or network-tested; do not treat them as completed A-share integration.
 - **India BSE**: ticker mapping unreliable via yfinance
 - **COMP for non-US**: FMP peer list is US-centric; non-US peers may be incomplete
 - **ANR for non-US**: price targets only available for US tickers via FMP
 - **Native currency in COMP**: non-US revenue displays in native currency, not USD-converted
 - **Bank / financial sector IS**: banks (e.g. HK-listed Chinese banks) use a different income statement structure — no Cost of Revenue, Gross Profit, Operating Income, or EBITDA. These fields show N/A. Net Interest Income and other bank-specific line items are not currently mapped.
 - **Semi-annual reporters**: companies that publish only H1 and annual results (e.g. Lenovo 00992 HK) will show data only for Q2 and the annual column in the XLSX download. Q1, Q3, Q4 cells are blank — this reflects the company's actual reporting cadence, not a data gap.
-- **Quarterly data availability**: yfinance may not capture the most recent quarterly interim report for some non-US tickers (observed: Q3 2025 missing for China Construction Bank 00939 HK). Data appears once yfinance ingests the filing.
+- **Quarterly data availability — unresolved/unverified**: V2's `QTR` command reuses the unchanged quarterly loader; it does not add a new data source or backfill missing filings. Non-US data still depends on yfinance, with a six-hour application cache. The previously observed missing Q3 2025 for 00939 HK has not been re-tested, so this README does not claim that specific gap persists today or has been fixed. Increasing `--quarters` only selects available periods; it cannot retrieve missing ones.
 
 **DCF Valuation**
+- **V2 scope**: standalone access was added; the underlying V1 model and its limitations remain unchanged.
 - **Beta relevering**: uses raw yfinance beta (already levered); Damodaran unlevered/relevered beta is not applied
 - **Non-US tickers**: CRP is added to ERP, but the risk-free rate stays US 10Y Treasury — a local sovereign yield would be more appropriate
 - **Cyclical / loss-making companies**: negative historical FCFF (e.g. companies with large restructuring charges) propagates into projections; treat the output as directional only
@@ -510,4 +550,12 @@ Infra       uv, python-dotenv, pytest
 **FX**
 - **FRD forward rates**: computed from hardcoded approximate benchmark rates, not live OIS/SOFR swap points — directionally correct but not trading-grade
 - **FXCA cross rates**: routes through USD when a direct yfinance pair is unavailable; minor rounding on exotic crosses
+
+**Factor research**
+- **Operator compatibility**: registered names do not guarantee numerical equivalence with BRAIN. Some operators and arguments are unsupported, and several implementations are simplified; see the [operator coverage notes](docs/FACTOR_RESEARCH.md#limitations).
+- **Research curves, not execution simulation**: close-T signals are paired with subsequent close-to-close returns. Fees, slippage, order execution, financing costs, and delisting returns are not modeled.
+- **Universe and data bias**: the default 12-stock universe is an example, not a point-in-time universe. Users must control survivorship bias, price adjustments, currency differences, and mixed trading calendars. Missing market observations are not forward-filled.
+- **Connected fields**: ALPHA currently consumes daily price/volume data. Financial statements, news, and estimates are not automatically available as factor matrices; historical publication-time alignment would be needed.
+- **Input and scale limits**: market mode accepts 10–50 securities and up to 1825 calendar days. CSV input is limited to 20 MB, 500 securities, and 5000 dates. Tushare and JoinQuant loaders still require integration and authenticated testing.
+- **Validation scope**: existing unit tests cover selected parsing, alignment, error, and integration paths. They do not establish correctness of every operator, out-of-sample predictive power, or strategy profitability. Overlapping multi-day forward returns must not be compounded as a directly tradable curve.
 
