@@ -1,6 +1,6 @@
 # Quant Factor Mining Engine
 
-A local factor research framework inspired by WorldQuant BRAIN, recovered from Claude export records and integrated with MINIBB.
+A local factor research framework inspired by WorldQuant BRAIN, integrated with the MINIBB terminal.
 
 ## Structure
 
@@ -24,4 +24,4 @@ All standard inputs are pandas DataFrames with dates as rows and security codes 
 
 Run the example from the project root with `python -m mini_bloomberg.factors.main` in the installed environment. For the integrated interface use `ALPHA`; use `ALPHA --dataset demo` explicitly for synthetic inputs.
 
-See [the current research guide](../../../docs/FACTOR_RESEARCH.md) for market data, CSV formats, supported syntax, recovery provenance and limitations. Original non-English copies are archived outside MINIBB in `MINIBB_originals_zh_20260912`.
+See [the current research guide](../../../docs/FACTOR_RESEARCH.md) for market data, CSV formats, supported syntax and limitations.

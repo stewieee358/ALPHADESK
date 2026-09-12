@@ -2,7 +2,7 @@
 
 ## Project language
 
-Keep all maintained source comments, docstrings, messages, documentation and web interface text in English. Operator descriptions are displayed in the web manual, so docstrings must also be English. Store original non-English reference files outside MINIBB in `../MINIBB_originals_zh_20260912/`. Preserve machine-readable vendor locale constants and matching aliases using Unicode escapes when required for compatibility.
+Keep all maintained source comments, docstrings, messages, documentation and web interface text in English. Operator descriptions are displayed in the web manual, so docstrings must also be English. Preserve machine-readable vendor locale constants and matching aliases using Unicode escapes when required for compatibility.
 
 Rules and context for Claude Code to follow while building this project. Read this before touching any code. Re-read it before each new function.
 

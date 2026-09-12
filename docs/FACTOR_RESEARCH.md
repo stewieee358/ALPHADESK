@@ -1,6 +1,6 @@
-# Factor Research: Usage and Recovery Notes
+# Factor Research Guide
 
-Recovered from Claude exports downloaded on 2026-09-11 and integrated with the MINIBB CLI, web interface and AI tools.
+MINIBB provides expression-based factor research through its interactive CLI, web interface, and AI tools.
 
 ## Usage
 
@@ -44,36 +44,15 @@ Expressions support numbers, string parameters, arithmetic, powers, comparisons,
 
 Results include coverage, IC, Rank IC, information ratios, latest factor rankings and cumulative quintile and long-short values. The web interface charts the long-short curve; the complete quintile series is returned in `data.curve`.
 
-## Recovery provenance
-
-- The factor engine was recovered from a May 2026 project conversation: 19 source files and 4 recorded edits. Personal conversation exports and account metadata are not distributed with this repository.
-
-No shell commands from the exports were executed. The recovery did not modify `.env`. The Python namespace is `mini_bloomberg.factors`, integrated through the existing function and rendering layers.
-
-## Changes from the recovered implementation
-
-- Replaced the parser that skipped invalid characters with a restricted AST interpreter supporting comparisons, keyword arguments and logical operator names.
-- Fixed initial holdings, exit priority and scalar conditions in `trade_when`.
-- Preserved CSV security identifiers, rejected duplicate observations and disabled implicit price filling when calculating returns.
-- Evaluation accepts unshifted daily returns and aligns forward returns internally. Multi-day returns compound over the holding period; overlapping multi-day returns cannot be compounded directly into a portfolio curve.
-- Quantile transforms use the Python standard library rather than adding scipy.
-- Online data integration adds provider/date metadata, nonmutating history ordering, empty-FMP fallback and an explicit OpenBB calendar range.
-
 ## Limitations
 
-This is a local research prototype. The available operators and signatures are generated from the installed code; use `ALPHA --operators` or the web Operator List. Private vendor reference material and comparison inventories are not distributed with this repository.
+This is a local research prototype. The available operators and signatures are generated from the installed code; use `ALPHA --operators` or the web Operator List.
 
 Name coverage does not establish numerical equivalence with BRAIN. Rolling minimum samples, rank normalization, some arguments, matrix semantics of vector/reduction operators and simplified implementations such as `pasteurize` still require compatibility validation. Unsupported names and arguments return errors.
 
 Return curves are gross research diagnostics. A signal at close T is paired with the close-T-to-close-T+1 return, without execution constraints, fees, slippage, delisting returns or financing costs. Provide consistently adjusted prices and a point-in-time universe. No trading account is accessed or traded by default.
 
-Tushare and JoinQuant are supported by the Python data loaders and require their respective optional SDKs and account credentials. This guide supersedes historical instructions in the recovered README.
-
-## English source migration
-
-Exact pre-translation copies are stored outside MINIBB in `../MINIBB_originals_zh_20260912/`, preserving their relative paths. The archive includes an SHA-256 manifest and is not imported by the application. Active comments, docstrings, messages and documentation are English, including operator descriptions shown on the web.
-
-Third-party spreadsheet locale constants and financial-name matching aliases retain their original values through Unicode escapes. They are compatibility data, not interface copy; changing their meanings would break parsing or matching. Dependencies, Git history, caches and private environment settings are not translation targets.
+Tushare and JoinQuant are supported by the Python data loaders and require their respective optional SDKs and account credentials.
 
 ## Validation
 
@@ -83,5 +62,3 @@ $env:PYTHONPATH='src'
 ```
 
 Checks cover expressions, invalid input, future-lag rejection, trading state, forward-return alignment, missing observations, CSV parsing, strict JSON, tool registries and the web API. Web scripts also pass Node syntax validation. Full operator equivalence and strategy effectiveness have not been established.
-
-A live connection and calculation check on 2026-09-12 retrieved 62 daily observations per security for 12 US equities, covering 2026-06-15 through 2026-09-11, all from OpenBB/yfinance. Provider information and metrics are recorded locally in the untracked `factor_market_smoke.json`. This verifies connectivity and calculation, not investment performance.

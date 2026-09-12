@@ -91,7 +91,7 @@ The web results include a long-short chart, field coverage, and data provenance.
 Expressions support registered operators, comparisons, and assignments such as
 `x = ts_delta(close, 5); rank(x)`. Only a subset of BRAIN expression syntax is
 implemented. Market histories can differ in calendars, currency, and adjustment
-conventions; see [factor research setup, provenance and limitations](docs/FACTOR_RESEARCH.md)
+conventions; see [factor research setup, data sources and limitations](docs/FACTOR_RESEARCH.md)
 for evaluation assumptions and supported data.
 
 **Equity**
@@ -549,8 +549,6 @@ Infra       uv, python-dotenv, pytest
 **Factor research**
 - **Operator compatibility**: registered names do not guarantee numerical equivalence with BRAIN. Some operators and arguments are unsupported, and several implementations are simplified; see the [operator coverage notes](docs/FACTOR_RESEARCH.md#limitations).
 - **Research curves, not execution simulation**: close-T signals are paired with subsequent close-to-close returns. Fees, slippage, order execution, financing costs, and delisting returns are not modeled.
-- **Universe and data bias**: the default 12-stock universe is an example, not a point-in-time universe. Users must control survivorship bias, price adjustments, currency differences, and mixed trading calendars. Missing market observations are not forward-filled.
 - **Connected fields**: ALPHA currently consumes daily price/volume data. Financial statements, news, and estimates are not automatically available as factor matrices; historical publication-time alignment would be needed.
 - **Input and scale limits**: market mode accepts 10–50 securities and up to 1825 calendar days. CSV input is limited to 20 MB, 500 securities, and 5000 dates.
-- **Validation scope**: existing unit tests cover selected parsing, alignment, error, and integration paths. They do not establish correctness of every operator, out-of-sample predictive power, or strategy profitability. Overlapping multi-day forward returns must not be compounded as a directly tradable curve.
 
