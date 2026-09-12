@@ -1,12 +1,13 @@
 # MINIBB-V2 — Mini-Bloomberg
 
-A CLI terminal that mimics Bloomberg for equity and FX analysis, powered by **OpenBB + FMP + yfinance** for data and **Claude** as a natural-language orchestrator.
+A Bloomberg-style CLI and web terminal for equity, FX, and quantitative factor research, powered by **OpenBB + FMP + yfinance** for data and **Claude** as a natural-language orchestrator.
 
 ```
 ╭─────────────────────────────────────────────────────────────────────────────╮
 │  MINI-BLOOMBERG  Equity & FX Analysis Terminal                              │
 │                                                                             │
-│  Equity: DES / FA / GP / ANR / COMP / RV / RPT                             │
+│  Equity: DES / FA / GP / ANR / COMP / RV / RPT / NEWS / DCF / QTR          │
+│  Factors: ALPHA / Operator List / Data Coverage                            │
 │  FX:     FXIP / FXCA / FXHV / FRD / WCR                                   │
 │  Prefix with ? to ask the AI analyst. HELP <GO> for all commands.          │
 │                                                                             │
@@ -34,11 +35,64 @@ MINI-BB> ? compare NVDA and AMD profitability <GO>
 
 ## Features
 
-**Factor research (restored Claude project)**: `ALPHA <GO>` evaluates a 12-stock example universe using existing FMP/OpenBB daily market histories.
-Use `ALPHA --symbols AAPL,MSFT,NVDA,AMZN,GOOGL,META,JPM,V,XOM,JNJ,PG,UNH --days 180` to select a universe and period;
-`ALPHA --dataset demo` explicitly selects synthetic data, and
-`ALPHA --dataset prices.csv --expression rank(ts_delta(close, 5))` evaluates your own CSV.
-Available in the CLI, web sidebar and AI tools. See [factor research setup, provenance and limitations](docs/FACTOR_RESEARCH.md).
+### What's new in V2
+
+| Feature | What you can do |
+|---|---|
+| `ALPHA` factor research | Evaluate expressions on daily market data, a local CSV, or deterministic synthetic demo data |
+| Operator List | Search registered operators, signatures, categories, implementation notes, and connected fields in the web interface; use `ALPHA --operators` in the terminal |
+| Data Coverage and results | Inspect field coverage, provider and date provenance, IC, Rank IC, information ratios, latest rankings, and quintile/long-short curves |
+| `NEWS` | Retrieve company headlines with publication dates and summaries |
+| `DCF` | Run standalone cash-flow valuation, including WACC, FCFF projections, fair value, and sensitivity analysis, without generating an RPT or requesting AI insights |
+| `QTR` | Inspect quarterly income statements, balance sheets, and cash flows |
+| Configurable AI endpoint | Use direct Anthropic access or an Anthropic-compatible endpoint through `ANTHROPIC_BASE_URL`; see [Setup](#setup) for the Qiniu configuration |
+
+The four new commands (`ALPHA`, `NEWS`, `DCF`, and `QTR`) are available in the
+interactive CLI, web command bar, and AI tools.
+
+### Try the new commands
+
+Start `uv run mini-bb`, then enter these commands in its interactive prompt,
+or enter them in the web command bar:
+
+```text
+AAPL US Equity <GO>
+NEWS --limit 10 <GO>
+DCF --years 4 <GO>
+QTR --quarters 8 --statement IS <GO>
+QTR --quarters 4 --statement CF <GO>
+ALPHA --dataset demo <GO>
+ALPHA --operators <GO>
+ALPHA --days 180 --expression rank(ts_delta(close, 5)) <GO>
+```
+
+`NEWS --limit` accepts 1–50 headlines (default 10). `QTR --quarters` accepts
+1–40 quarters (default 8), subject to provider availability; omit `--statement`
+for all statements, or select `IS`, `BS`, or `CF`.
+
+### Factor research
+
+`ALPHA` defaults to a 12-stock example universe using FMP/OpenBB market histories;
+it does not use the currently loaded single security. Select 10–50 securities
+and a lookback of 7–1825 calendar days, or provide `--start` and `--end` dates:
+
+```text
+ALPHA --symbols AAPL,MSFT,NVDA,AMZN,GOOGL,META,JPM,V,XOM,JNJ,PG,UNH --days 180 <GO>
+ALPHA --start 2025-01-01 --end 2025-12-31 --expression rank(ts_delta(close, 5)) <GO>
+ALPHA --dataset prices.csv --expression rank(ts_mean(close, 20)) <GO>
+```
+
+Place `prices.csv` in `data/factors/` with `trade_date,ts_code,close` columns
+and at least 10 securities and 3 dates. Optional fields include
+`open,high,low,volume,amount`. Use `ALPHA --dataset demo` for a credentials-free
+synthetic example; market-data failures do not silently switch to demo data.
+
+The web results include a long-short chart, field coverage, and data provenance.
+Expressions support registered operators, comparisons, and assignments such as
+`x = ts_delta(close, 5); rank(x)`. Only a subset of BRAIN expression syntax is
+implemented. Market histories can differ in calendars, currency, and adjustment
+conventions; see [factor research setup, provenance and limitations](docs/FACTOR_RESEARCH.md)
+for evaluation assumptions and supported data.
 
 **Equity**
 
@@ -51,6 +105,9 @@ Available in the CLI, web sidebar and AI tools. See [factor research setup, prov
 | `COMP` | Comparables | Peer table: margins, EBITDA, debt, beta |
 | `RV` | Relative Value | Valuation multiples + margin comparison vs. peer group |
 | `RPT` | (custom) | Full investment-bank-style HTML equity report with DCF valuation model (opens in browser) |
+| `NEWS` | Company News | Recent headlines, publication dates, and summaries; `--limit N` |
+| `DCF` | DCF Valuation | Standalone WACC, FCFF projections, fair value, and sensitivity grid; `--years N` |
+| `QTR` | Quarterly Financials | Quarterly IS/BS/CF; `--quarters N`, optional `--statement IS\|BS\|CF` |
 
 **FX**
 
@@ -319,6 +376,7 @@ Start the FastAPI server (`uvicorn mini_bloomberg.web.server:app --reload --port
 - **RAW DATA tab**: full JSON response for debugging
 - **AI Agent panel**: natural language questions with tool call log; maintains conversation history within the browser session
 - **Sidebar shortcuts**: click DES, FA, GP, etc. to fill the command bar; command history
+- **Factor research**: ALPHA results show coverage, data sources, rankings, evaluation metrics, and a long-short chart; Operator List provides a searchable operator and field reference
 
 ### RPT in the web UI
 
