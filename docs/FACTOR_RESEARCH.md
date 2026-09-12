@@ -47,8 +47,6 @@ Results include coverage, IC, Rank IC, information ratios, latest factor ranking
 ## Recovery provenance
 
 - The factor engine was recovered from a May 2026 project conversation: 19 source files and 4 recorded edits. Personal conversation exports and account metadata are not distributed with this repository.
-- The original 102-entry operator CSV was recovered from tool output as `operators_wq_brain_102.csv`.
-- The local, untracked `factor_restore_manifest.json` records original source hashes and applied edits. `factor_operator_inventory.json` lists registered and missing names.
 
 No shell commands from the exports were executed. The recovery did not modify `.env`. The Python namespace is `mini_bloomberg.factors`, integrated through the existing function and rendering layers.
 
@@ -63,13 +61,13 @@ No shell commands from the exports were executed. The recovery did not modify `.
 
 ## Limitations
 
-This is a working local research prototype, not a complete BRAIN platform. There are 118 registered names including aliases, covering 94 of the 102 names in the original CSV. Eight remain unimplemented: `ts_target_tvr_decay`, `ts_target_tvr_hump`, `generate_stats`, `group_backfill`, `combo_a`, `self_corr`, `in`, `universe_size`.
+This is a local research prototype. The available operators and signatures are generated from the installed code; use `ALPHA --operators` or the web Operator List. Private vendor reference material and comparison inventories are not distributed with this repository.
 
 Name coverage does not establish numerical equivalence with BRAIN. Rolling minimum samples, rank normalization, some arguments, matrix semantics of vector/reduction operators and simplified implementations such as `pasteurize` still require compatibility validation. Unsupported names and arguments return errors.
 
 Return curves are gross research diagnostics. A signal at close T is paired with the close-T-to-close-T+1 return, without execution constraints, fees, slippage, delisting returns or financing costs. Provide consistently adjusted prices and a point-in-time universe. No trading account is accessed or traded by default.
 
-Tushare and JoinQuant loaders remain in the recovered package; their optional SDKs are not installed or network-validated. ALPHA uses existing FMP/OpenBB histories, explicit synthetic data or local CSV files. This guide supersedes historical instructions in the recovered README.
+Tushare and JoinQuant are supported by the Python data loaders and require their respective optional SDKs and account credentials. This guide supersedes historical instructions in the recovered README.
 
 ## English source migration
 

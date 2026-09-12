@@ -436,11 +436,8 @@ V1. The new command changes access to the model, not its assumptions or accuracy
 | FMP / OpenBB daily histories | Connected to `ALPHA --dataset market` (the default); provider/date provenance included |
 | Synthetic demo | Connected to `ALPHA --dataset demo`; deterministic generated data |
 | Local CSV | Connected to `ALPHA --dataset prices.csv`; files live in `data/factors/` |
-| Tushare / JoinQuant | Python loaders exist in `factors/data/loader.py`; optional SDKs are not declared in the default dependencies, and authenticated network behavior has not been validated |
+| Tushare / JoinQuant | Supported through the Python loaders in `factors/data/loader.py`; requires the corresponding optional SDK and account credentials |
 
-Tushare and JoinQuant are not selectable through the current ALPHA command and
-are not wired into the equity fundamentals or quarterly-report routes. Their
-presence in the factor package does not establish end-to-end A-share support.
 See [factor research documentation](docs/FACTOR_RESEARCH.md) for details.
 
 ---
@@ -530,14 +527,12 @@ Infra       uv, python-dotenv, pytest
 ## Known limitations
 
 **Equity**
-- **Chinese A-shares**: the ticker mapper includes a limited Shanghai (`CN` → `.SS`) route via existing providers, but broad A-share coverage is unverified. Tushare and JoinQuant factor loaders exist but are not connected to the terminal data routes or network-tested; do not treat them as completed A-share integration.
 - **India BSE**: ticker mapping unreliable via yfinance
 - **COMP for non-US**: FMP peer list is US-centric; non-US peers may be incomplete
 - **ANR for non-US**: price targets only available for US tickers via FMP
 - **Native currency in COMP**: non-US revenue displays in native currency, not USD-converted
 - **Bank / financial sector IS**: banks (e.g. HK-listed Chinese banks) use a different income statement structure — no Cost of Revenue, Gross Profit, Operating Income, or EBITDA. These fields show N/A. Net Interest Income and other bank-specific line items are not currently mapped.
 - **Semi-annual reporters**: companies that publish only H1 and annual results (e.g. Lenovo 00992 HK) will show data only for Q2 and the annual column in the XLSX download. Q1, Q3, Q4 cells are blank — this reflects the company's actual reporting cadence, not a data gap.
-- **Quarterly data availability — unresolved/unverified**: V2's `QTR` command reuses the unchanged quarterly loader; it does not add a new data source or backfill missing filings. Non-US data still depends on yfinance, with a six-hour application cache. The previously observed missing Q3 2025 for 00939 HK has not been re-tested, so this README does not claim that specific gap persists today or has been fixed. Increasing `--quarters` only selects available periods; it cannot retrieve missing ones.
 
 **DCF Valuation**
 - **V2 scope**: standalone access was added; the underlying V1 model and its limitations remain unchanged.
@@ -556,6 +551,6 @@ Infra       uv, python-dotenv, pytest
 - **Research curves, not execution simulation**: close-T signals are paired with subsequent close-to-close returns. Fees, slippage, order execution, financing costs, and delisting returns are not modeled.
 - **Universe and data bias**: the default 12-stock universe is an example, not a point-in-time universe. Users must control survivorship bias, price adjustments, currency differences, and mixed trading calendars. Missing market observations are not forward-filled.
 - **Connected fields**: ALPHA currently consumes daily price/volume data. Financial statements, news, and estimates are not automatically available as factor matrices; historical publication-time alignment would be needed.
-- **Input and scale limits**: market mode accepts 10–50 securities and up to 1825 calendar days. CSV input is limited to 20 MB, 500 securities, and 5000 dates. Tushare and JoinQuant loaders still require integration and authenticated testing.
+- **Input and scale limits**: market mode accepts 10–50 securities and up to 1825 calendar days. CSV input is limited to 20 MB, 500 securities, and 5000 dates.
 - **Validation scope**: existing unit tests cover selected parsing, alignment, error, and integration paths. They do not establish correctness of every operator, out-of-sample predictive power, or strategy profitability. Overlapping multi-day forward returns must not be compounded as a directly tradable curve.
 

@@ -44,3 +44,7 @@ htmlcov/
 # OS
 .DS_Store
 Thumbs.db
+
+# Private vendor reference exports and derived inventories
+operators_wq_brain*.csv
+factor_operator_inventory.json
