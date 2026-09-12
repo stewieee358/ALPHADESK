@@ -233,6 +233,8 @@ class PriceHistory(BaseModel):
     symbol: str
     currency: Optional[str] = None
     bars: list[PriceBar] = []
+    source: Optional[str] = None
+    fetched_at: Optional[str] = None
 
 
 # ─── ANR ──────────────────────────────────────────────────────────────────────

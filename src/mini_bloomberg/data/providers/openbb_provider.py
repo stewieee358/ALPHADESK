@@ -4,6 +4,8 @@ Primary source for: company profile (DES), non-US fundamentals, peers (COMP).
 Fallback for: price history, analyst estimates when FMP fails.
 """
 
+from datetime import date, datetime, timedelta, timezone
+
 from mini_bloomberg.core.cache import cached
 from mini_bloomberg.core.errors import DataSourceError
 from mini_bloomberg.core.ticker import Ticker
@@ -93,6 +95,8 @@ def get_price_history(ticker: Ticker, days: int = 365) -> PriceHistory:
         result = _obb().equity.price.historical(
             symbol=ticker.yfinance_symbol,
             provider="yfinance",
+            start_date=(date.today() - timedelta(days=days)).isoformat(),
+            end_date=date.today().isoformat(),
         )
         bars_raw = _all(result)
         if not bars_raw:
@@ -109,7 +113,8 @@ def get_price_history(ticker: Ticker, days: int = 365) -> PriceHistory:
                 close=b.get("close"),
                 volume=b.get("volume"),
             ))
-        return PriceHistory(symbol=ticker.symbol, bars=bars)
+        return PriceHistory(symbol=ticker.symbol, bars=bars, source="OpenBB/yfinance",
+                            fetched_at=datetime.now(timezone.utc).isoformat())
     except DataSourceError:
         raise
     except Exception as e:

@@ -45,5 +45,6 @@ relevant — for example, "as we discussed earlier, AAPL's margin compressed sig
 Do not re-fetch data you already retrieved earlier in the session unless the user asks you to refresh it.
 
 ## Tone
+Write all user-facing analysis, explanations and report prose in English.
 Professional but direct. No fluff. If asked to compare two companies, give a verdict.
 """

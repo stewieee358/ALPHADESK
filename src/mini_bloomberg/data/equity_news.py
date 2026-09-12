@@ -11,8 +11,9 @@ _PROVIDERS = ["yfinance", "fmp", "benzinga"]
 
 
 def fetch_company_news(ticker: Ticker, limit: int = 10) -> list[dict]:
-    """Return [{title, date, text}] for the ticker; [] if all providers fail."""
-    cache_key = f"news:{ticker.symbol}:{ticker.exchange_code}"
+    """Return [{title, date, text, url, source}] for the ticker; [] if all providers fail."""
+    # v2 key: the payload gained url/source, so old 3-field entries must not be reused.
+    cache_key = f"news2:{ticker.symbol}:{ticker.exchange_code}:{limit}"
     cached = _disk_cache.get(cache_key)
     if cached is not None:
         return cached
@@ -27,9 +28,12 @@ def fetch_company_news(ticker: Ticker, limit: int = 10) -> list[dict]:
             if items:
                 news = [
                     {
-                        "title": getattr(i, "title", "") or "",
-                        "date":  str(getattr(i, "date",  "") or ""),
-                        "text":  getattr(i, "text", "") or getattr(i, "summary", "") or "",
+                        "title":  getattr(i, "title", "") or "",
+                        "date":   str(getattr(i, "date",  "") or ""),
+                        "text":   getattr(i, "text", "") or getattr(i, "summary", "") or "",
+                        "url":    getattr(i, "url", "") or "",
+                        # benzinga exposes the outlet as `author`, yfinance/fmp as `source`
+                        "source": getattr(i, "source", "") or getattr(i, "author", "") or "",
                     }
                     for i in items[:limit]
                 ]

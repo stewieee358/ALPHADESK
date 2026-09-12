@@ -1,5 +1,9 @@
 # CLAUDE.md
 
+## Project language
+
+Keep all maintained source comments, docstrings, messages, documentation and web interface text in English. Operator descriptions are displayed in the web manual, so docstrings must also be English. Store original non-English reference files outside MINIBB in `../MINIBB_originals_zh_20260912/`. Preserve machine-readable vendor locale constants and matching aliases using Unicode escapes when required for compatibility.
+
 Rules and context for Claude Code to follow while building this project. Read this before touching any code. Re-read it before each new function.
 
 ---
@@ -77,6 +81,9 @@ Target: all functions in `Bloomberg Functions/02_Equity.md`. Implement in priori
 | `COMP` | Comparable Analysis | Side-by-side peer comparison on key ratios |
 | `RV` | Relative Value | Valuation + margin comparison for ticker vs. peer group |
 | `RPT` | (custom) | Full HTML equity report combining all of the above |
+| `NEWS` | Company News | Recent headlines with date and summary (`--limit N`) |
+| `DCF` | DCF Valuation | WACC, FCFF projection, fair value per share, 5×5 sensitivity grid |
+| `QTR` | Quarterly Financials | IS/BS/CF by fiscal quarter (`--quarters N`, `--statement IS\|BS\|CF`) |
 
 **FX (`04_FX.md`)**
 

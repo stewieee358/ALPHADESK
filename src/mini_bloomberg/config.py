@@ -8,6 +8,7 @@ class Settings(BaseSettings):
 
     fmp_api_key: str = ""
     anthropic_api_key: str = ""
+    anthropic_base_url: str = "https://api.anthropic.com"
     openbb_pat: str = ""
     claude_model: str = "claude-sonnet-4-6"
 

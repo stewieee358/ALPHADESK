@@ -12,15 +12,21 @@ def get_price_history(ticker: Ticker, days: int = 365) -> PriceHistory:
     if ticker.is_us:
         try:
             history = fmp_provider.get_price_history(ticker, limit=days)
-            # FMP returns newest-first; reverse to chronological order
-            history.bars = list(reversed(history.bars))
-            return history
+            if not history.bars:
+                raise DataSourceError(f"FMP: no price history for {ticker}")
+            return history.model_copy(update={
+                "bars": sorted(history.bars, key=lambda bar: bar.date), "source": "FMP",
+            })
         except DataSourceError:
             pass
 
     try:
         history = openbb_provider.get_price_history(ticker, days=days)
-        return history
+        if not history.bars:
+            raise DataSourceError(f"OpenBB: no price history for {ticker}")
+        return history.model_copy(update={
+            "bars": sorted(history.bars, key=lambda bar: bar.date), "source": "OpenBB/yfinance",
+        })
     except DataSourceError:
         raise
     except Exception as e:

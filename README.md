@@ -34,6 +34,12 @@ MINI-BB> ? compare NVDA and AMD profitability <GO>
 
 ## Features
 
+**Factor research (restored Claude project)**: `ALPHA <GO>` evaluates a 12-stock example universe using existing FMP/OpenBB daily market histories.
+Use `ALPHA --symbols AAPL,MSFT,NVDA,AMZN,GOOGL,META,JPM,V,XOM,JNJ,PG,UNH --days 180` to select a universe and period;
+`ALPHA --dataset demo` explicitly selects synthetic data, and
+`ALPHA --dataset prices.csv --expression rank(ts_delta(close, 5))` evaluates your own CSV.
+Available in the CLI, web sidebar and AI tools. See [factor research setup, provenance and limitations](docs/FACTOR_RESEARCH.md).
+
 **Equity**
 
 | Function | Bloomberg equivalent | What it does |
@@ -115,6 +121,26 @@ MINI-BB> ? compare NVDA and AMD profitability <GO>
 
 ## Setup
 
+### Repository contents
+
+- `src/mini_bloomberg/`: application, web assets, and factor research engine.
+- `tests/`: unit tests using fixture market data.
+- `docs/`, `Bloomberg Functions/`, `Schema for stocks analysis/`: reference documentation.
+- `pyproject.toml` and `uv.lock`: package configuration and locked dependencies.
+- `.env.example`: configuration template without credentials.
+
+Generated HTML reports, local factor datasets, caches, logs, and `.env` stay on
+your machine. Existing reports are preserved when removed from Git tracking.
+
+Run checks after installing dependencies:
+
+```bash
+uv lock --check
+uv run python -m unittest discover -s tests -v
+```
+
+GitHub Actions runs the same unit test suite on pushes and pull requests.
+
 ### 1. Prerequisites
 
 - Python ≥ 3.11
@@ -123,9 +149,9 @@ MINI-BB> ? compare NVDA and AMD profitability <GO>
 ### 2. Install
 
 ```bash
-git clone <repo>
-cd mini-bloomberg
-uv sync
+git clone https://github.com/stewieee358/MINIBB.git
+cd MINIBB
+uv sync --locked --extra dev
 ```
 
 ### 3. API Keys
@@ -135,6 +161,9 @@ Copy `.env.example` to `.env` and fill in:
 ```bash
 cp .env.example .env
 ```
+
+On Windows PowerShell, use `Copy-Item .env.example .env`. Keep credentials in
+your local `.env`; only the placeholder `.env.example` belongs in Git.
 
 | Key | Where to get it | Required for |
 |---|---|---|
@@ -146,6 +175,20 @@ cp .env.example .env
 > **FX functions** (FXIP/FXCA/FXHV/FRD/WCR) use **yfinance only** — no API key required.
 
 ### 4. Run
+
+For Qiniu AI, set the following in `.env` (use your Qiniu AI key):
+
+```dotenv
+ANTHROPIC_API_KEY=your_qiniu_ai_key
+ANTHROPIC_BASE_URL=https://api.qnaigc.com
+CLAUDE_MODEL=claude-4.5-sonnet
+```
+
+Both the CLI and Web UI use this endpoint. Model access depends on your Qiniu
+account. See the [Qiniu Anthropic API documentation](https://apidocs.qnaigc.com/413432574e0).
+Restart the existing server after changing `.env`; running the launcher again
+while the server is active only opens the browser. For direct Anthropic access,
+set `ANTHROPIC_BASE_URL=https://api.anthropic.com` and use an Anthropic key and model ID.
 
 **CLI (terminal)**
 ```bash

@@ -829,3 +829,248 @@ def render_wcr(result: dict) -> None:
     console.print()
     console.print(Panel(t, title=title, border_style="yellow", padding=(1, 2)))
     console.print()
+
+
+# ─── NEWS ─────────────────────────────────────────────────────────────────────
+
+def render_news(result: dict) -> None:
+    if result["status"] == "error":
+        console.print(f"[{RED}]NEWS ERROR:[/{RED}] {result['message']}")
+        return
+
+    d = result["data"]
+    symbol = d.get("symbol", "")
+    articles = d.get("articles", [])
+
+    if not articles:
+        console.print(f"[{RED}]NEWS:[/{RED}] No recent headlines found for {symbol}.")
+        return
+
+    title = f"[{ORANGE}]NEWS[/{ORANGE}]  [{HEADER}]{symbol} — Recent Headlines[/{HEADER}]  [{DIM}]{len(articles)} stories[/{DIM}]"
+
+    t = Table(border_style="dim", header_style=HEADER, show_lines=True, expand=True)
+    t.add_column("#",        justify="right", style=DIM,   width=3)
+    t.add_column("Date",     style=ORANGE,    width=12, no_wrap=True)
+    t.add_column("Source",   style=GREEN,     max_width=16)
+    t.add_column("Headline", style=HEADER,    min_width=28)
+    t.add_column("Summary",  style=DIM,       min_width=28)
+
+    for i, a in enumerate(articles, start=1):
+        summary = (a.get("text") or "").replace("\n", " ").strip()
+        if len(summary) > 160:
+            summary = summary[:160] + "…"
+        title = a.get("title") or "(untitled)"
+        # Terminals can't show a link inline — hyperlink the headline instead
+        url = a.get("url") or ""
+        headline = f"[link={url}]{title}[/link]" if url.startswith(("http://", "https://")) else title
+        t.add_row(
+            str(i),
+            (a.get("date") or "")[:10] or "N/A",
+            a.get("source") or "—",
+            headline,
+            summary or "—",
+        )
+
+    console.print()
+    console.print(Panel(t, title=title, border_style="yellow", padding=(1, 2)))
+    console.print()
+
+
+# ─── DCF ──────────────────────────────────────────────────────────────────────
+
+def render_dcf(result: dict) -> None:
+    if result["status"] == "error":
+        console.print(f"[{RED}]DCF ERROR:[/{RED}] {result['message']}")
+        return
+
+    d = result["data"]
+    symbol = d.get("symbol", "")
+    currency = d.get("currency") or "USD"
+    sym_c = _CURRENCY_SYMBOLS.get(currency, f"{currency} " if currency else "$")
+
+    def _rate(v):
+        return f"{v * 100:.2f}%" if v is not None else "N/A"
+
+    title = f"[{ORANGE}]DCF[/{ORANGE}]  [{HEADER}]{symbol} — Discounted Cash Flow ({currency})[/{HEADER}]"
+
+    # ── WACC inputs (left) / valuation bridge (right) ─────────────────────────
+    left = Table.grid(padding=(0, 1))
+    left.add_column(style=DIM, width=22)
+    left.add_column(style=GREEN)
+    for label, value in [
+        ("Risk-free (10Y UST)", _rate(d.get("rf"))),
+        ("Equity Risk Premium", _rate(d.get("erp"))),
+        ("Country Risk Prem.",  _rate(d.get("crp"))),
+        ("Beta (levered)",      f"{d.get('beta_levered'):.3f}" if d.get("beta_levered") is not None else "N/A"),
+        ("Cost of Equity",      _rate(d.get("cost_of_equity"))),
+        ("Cost of Debt",        _rate(d.get("cost_of_debt"))),
+        ("Tax Rate",            _rate(d.get("tax_rate"))),
+        ("WACC",                _rate(d.get("wacc"))),
+        ("Terminal Growth",     _rate(d.get("terminal_growth"))),
+    ]:
+        left.add_row(label, value)
+
+    right = Table.grid(padding=(0, 1))
+    right.add_column(style=DIM, width=22)
+    right.add_column(style=GREEN)
+    for label, value in [
+        ("PV of Forecast FCFF", _fmt_large(d.get("pv_discrete"), currency)),
+        ("Terminal Value",      _fmt_large(d.get("terminal_value"), currency)),
+        ("PV of Terminal",      _fmt_large(d.get("pv_terminal"), currency)),
+        ("Enterprise Value",    _fmt_large(d.get("enterprise_value_dcf"), currency)),
+        ("Less: Total Debt",    _fmt_large(d.get("total_debt"), currency)),
+        ("Plus: Cash",          _fmt_large(d.get("cash"), currency)),
+        ("Equity Value",        _fmt_large(d.get("equity_value_dcf"), currency)),
+        ("Shares Outstanding",  _fmt_large(d.get("shares_outstanding"))),
+        ("Revenue CAGR",        _rate(d.get("revenue_cagr"))),
+    ]:
+        right.add_row(label, value)
+
+    grid = Table.grid(padding=(0, 2))
+    grid.add_column()
+    grid.add_column()
+    grid.add_row(left, right)
+
+    # ── Headline: fair value vs market ────────────────────────────────────────
+    fair = d.get("dcf_per_share")
+    price = d.get("current_price")
+    upside = d.get("upside_pct")
+    verdict = Table.grid(padding=(0, 3))
+    verdict.add_column(style=DIM, width=22)
+    verdict.add_column(style=GREEN)
+    verdict.add_row("DCF Fair Value", f"[{HEADER}]{sym_c}{fair:,.2f}[/{HEADER}]" if fair else "N/A")
+    verdict.add_row("Current Price", f"{sym_c}{price:,.2f}" if price else "N/A")
+    if upside is not None:
+        colour = GREEN if upside >= 0 else RED
+        arrow = "▲" if upside >= 0 else "▼"
+        verdict.add_row("Upside / (Downside)", f"[{colour}]{arrow} {abs(upside) * 100:.1f}%[/{colour}]")
+
+    # ── FCFF projection schedule ──────────────────────────────────────────────
+    projections = d.get("fcff_projections") or []
+    proj_t = None
+    if projections:
+        proj_t = Table(title=f"[{SUBHEAD}]FCFF Projection[/{SUBHEAD}]", border_style="dim",
+                       header_style=HEADER, show_lines=False)
+        proj_t.add_column("Metric", style=DIM, width=20)
+        for p in projections:
+            proj_t.add_column(str(p.get("year", "")), justify="right", style=GREEN)
+
+        def proj_row(label: str, key: str):
+            proj_t.add_row(label, *[_fmt_large(p.get(key), currency) for p in projections])
+
+        proj_row("Revenue", "revenue")
+        proj_row("EBIT", "ebit")
+        proj_row("EBIT after tax", "ebit_after_tax")
+        proj_row("D&A", "da")
+        proj_row("Δ NWC", "nwc_change")
+        proj_row("CapEx", "capex")
+        proj_row("FCFF", "fcff")
+        proj_t.add_row(
+            "PV factor",
+            *[f"{p.get('pv_factor'):.3f}" if p.get("pv_factor") is not None else "N/A" for p in projections],
+        )
+        proj_row("PV of FCFF", "pv_fcff")
+
+    # ── Sensitivity grid ──────────────────────────────────────────────────────
+    s_wacc = d.get("sensitivity_wacc") or []
+    s_tg = d.get("sensitivity_tg") or []
+    s_grid = d.get("sensitivity_grid") or []
+    sens_t = None
+    if s_wacc and s_tg and s_grid:
+        sens_t = Table(title=f"[{SUBHEAD}]Sensitivity — Fair Value per Share (WACC x g)[/{SUBHEAD}]",
+                       border_style="dim", header_style=HEADER, show_lines=False)
+        sens_t.add_column("WACC \\ g", style=DIM, width=10)
+        for g in s_tg:
+            sens_t.add_column(f"{g * 100:.1f}%", justify="right", style=GREEN)
+        for w, row in zip(s_wacc, s_grid):
+            cells = []
+            for v in row:
+                if not v:
+                    cells.append("[dim]N/A[/dim]")
+                elif price and v > price:
+                    cells.append(f"[{GREEN}]{sym_c}{v:,.2f}[/{GREEN}]")
+                elif price:
+                    cells.append(f"[{RED}]{sym_c}{v:,.2f}[/{RED}]")
+                else:
+                    cells.append(f"{sym_c}{v:,.2f}")
+            sens_t.add_row(f"{w * 100:.2f}%", *cells)
+
+    console.print()
+    console.print(Panel(verdict, title=title, border_style="yellow", padding=(1, 2)))
+    console.print(Panel(grid, title=f"[{SUBHEAD}]WACC & Equity Bridge[/{SUBHEAD}]",
+                        border_style="dim", padding=(1, 2)))
+    if proj_t:
+        console.print(Panel(proj_t, border_style="dim", padding=(1, 2)))
+    if sens_t:
+        console.print(Panel(sens_t, border_style="dim", padding=(1, 2)))
+    if d.get("using_fallback_rates"):
+        console.print(f"[{DIM}]Note: live Treasury/Damodaran fetch failed — fallback rates used.[/{DIM}]")
+    console.print()
+
+
+# ─── QTR ──────────────────────────────────────────────────────────────────────
+
+_QTR_SECTIONS = [
+    ("income",   "Income Statement"),
+    ("balance",  "Balance Sheet"),
+    ("cashflow", "Cash Flow"),
+]
+
+
+def render_qtr(result: dict) -> None:
+    if result["status"] == "error":
+        console.print(f"[{RED}]QTR ERROR:[/{RED}] {result['message']}")
+        return
+
+    d = result["data"]
+    symbol = d.get("symbol", "")
+    currency = d.get("currency") or "USD"
+
+    sections = [(f, t) for f, t in _QTR_SECTIONS if d.get(f)]
+    if not sections:
+        console.print(f"[{RED}]QTR:[/{RED}] No quarterly data available for {symbol}.")
+        return
+
+    title = f"[{ORANGE}]QTR[/{ORANGE}]  [{HEADER}]{symbol} — Quarterly Financials ({currency})[/{HEADER}]"
+
+    tables = []
+    for field, section_title in sections:
+        periods = d[field]
+        t = Table(title=f"[{SUBHEAD}]{section_title}[/{SUBHEAD}]", border_style="dim",
+                  header_style=HEADER, show_lines=False)
+        t.add_column("Metric", style=DIM, width=28)
+        for p in periods:
+            t.add_column(f"{p.get('fiscal_year', '')} {p.get('quarter', '')}".strip(),
+                         justify="right", style=GREEN)
+
+        # Union of row names across periods, preserving first-seen order.
+        # Rows prefixed "~" are company-specific extras from the source filing.
+        row_names: list[str] = []
+        for p in periods:
+            for name in (p.get("fields") or {}):
+                if name not in row_names:
+                    row_names.append(name)
+
+        cur_sym = _CURRENCY_SYMBOLS.get(currency, f"{currency} " if currency else "$")
+        for name in row_names:
+            values = [(p.get("fields") or {}).get(name) for p in periods]
+            if all(v is None for v in values):
+                continue
+            label = name[1:] + " *" if name.startswith("~") else name
+            # Per-share figures are small — _fmt_large would round them to whole units
+            per_share = "EPS" in name.upper() or "PER SHARE" in name.upper()
+            cells = [
+                "[dim]N/A[/dim]" if v is None
+                else (f"{cur_sym}{v:,.2f}" if per_share else _fmt_large(v, currency))
+                for v in values
+            ]
+            t.add_row(label, *cells)
+
+        tables.append(t)
+
+    console.print()
+    console.print(Panel(tables[0], title=title, border_style="yellow", padding=(1, 2)))
+    for t in tables[1:]:
+        console.print(Panel(t, border_style="dim", padding=(1, 2)))
+    console.print(f"[{DIM}]* company-specific line item from the source filing[/{DIM}]")
+    console.print()

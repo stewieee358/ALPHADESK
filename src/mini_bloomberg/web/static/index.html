@@ -354,6 +354,28 @@
   .kv-val.down { color: var(--red); }
   .kv-val.gold { color: var(--yellow); }
 
+  .alpha-results { margin: 20px 0; min-width: 0; }
+  .alpha-metrics {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 10px;
+    margin: 12px 0 22px;
+  }
+  .alpha-metric { padding: 14px; background: var(--bg2); border: 1px solid var(--border); min-width: 0; }
+  .alpha-metric-label { color: var(--text2); font-size: 11px; margin-bottom: 10px; }
+  .alpha-metric-value { color: var(--yellow); font-size: 21px; font-variant-numeric: tabular-nums; }
+  .alpha-table-wrap { width: 100%; overflow-x: auto; }
+  .alpha-ranking { table-layout: fixed; }
+  .alpha-ranking th:first-child { width: 56px; }
+  .alpha-ranking th:last-child { width: 130px; }
+  .alpha-ranking td:last-child, .alpha-ranking th:last-child { text-align: right; font-variant-numeric: tabular-nums; }
+  .alpha-ranking td { overflow-wrap: anywhere; }
+  .alpha-manual-search { width: 100%; box-sizing: border-box; padding: 10px 12px; margin: 12px 0; background: var(--bg2); color: var(--text); border: 1px solid var(--border); font: inherit; }
+  .alpha-manual-entry { padding: 12px 0; border-bottom: 1px solid var(--border); }
+  .alpha-manual-entry summary { cursor: pointer; color: var(--yellow); overflow-wrap: anywhere; }
+  .alpha-manual-entry pre { white-space: pre-wrap; overflow-wrap: anywhere; color: var(--text2); font: inherit; line-height: 1.7; }
+  .alpha-manual-entry small { color: var(--text3); margin-left: 10px; }
+  .alpha-field-note { color: var(--text2); line-height: 1.7; max-width: 1000px; }
   .output-table { width: 100%; border-collapse: collapse; font-size: 11px; }
   .output-table th {
     background: var(--bg3);
@@ -837,6 +859,9 @@
         <div class="fn-tab" data-fn="COMP">COMP</div>
         <div class="fn-tab" data-fn="RV">RV</div>
         <div class="fn-tab" data-fn="RPT">RPT</div>
+        <div class="fn-tab" data-fn="NEWS">NEWS</div>
+        <div class="fn-tab" data-fn="DCF">DCF</div>
+        <div class="fn-tab" data-fn="QTR">QTR</div>
       </div>
     </div>
 
@@ -851,6 +876,13 @@
       </div>
     </div>
 
+    <div class="sidebar-section">
+      <span class="sidebar-label">Factor Research</span>
+      <div class="fn-tabs">
+        <div class="fn-tab" data-fn="ALPHA">ALPHA</div>
+        <div class="fn-tab" data-fn="ALPHA --operators">Operator List</div>
+      </div>
+    </div>
     <div class="sidebar-section">
       <span class="sidebar-label">HISTORY</span>
       <div id="sidebar-history" style="font-size:10px; padding: 4px 0;"></div>
@@ -960,6 +992,10 @@ const CMDS = [
   { cmd: 'COMP', desc: 'Comparable companies side-by-side' },
   { cmd: 'RPT',  desc: 'Full equity report (HTML)' },
   { cmd: 'RV',   desc: 'Relative value vs. peers' },
+  { cmd: 'NEWS', desc: 'Recent company headlines' },
+  { cmd: 'DCF',  desc: 'Discounted cash flow fair value' },
+  { cmd: 'ALPHA', desc: 'Factor research / online daily market data' },
+  { cmd: 'QTR',  desc: 'Quarterly financials (IS / BS / CF)' },
   { cmd: 'FXIP', desc: 'FX spot monitor: G10/EM vs USD' },
   { cmd: 'FXCA', desc: 'FX calculator: convert between currencies' },
   { cmd: 'FXHV', desc: 'FX historical volatility (multi-window)' },
@@ -1067,6 +1103,10 @@ document.querySelectorAll('.sidebar-item[data-asset]').forEach(el => {
 document.querySelectorAll('.fn-tab[data-fn]').forEach(el => {
   el.addEventListener('click', () => {
     const fn = el.dataset.fn;
+    if (fn === 'ALPHA --operators') {
+      executeCommand(fn);
+      return;
+    }
     cmdInput.value = fn;
     cmdInput.focus();
   });
@@ -1698,6 +1738,239 @@ function renderGP(data, cmd) {
   </div>`;
 }
 
+function renderNEWS(data, cmd) {
+  const d = data.data || {};
+  const articles = d.articles || [];
+  if (!articles.length) {
+    return `<div class="output-block">
+      <div class="cmd-echo">${escHtml(cmd)}</div>
+      <div class="output-header">NEWS — ${escHtml(d.symbol || '')}</div>
+      <div style="color:var(--text3);padding:12px">No recent headlines found.</div>
+    </div>`;
+  }
+
+  const items = articles.map((a, i) => {
+    const summary = (a.text || '').replace(/\s+/g, ' ').trim();
+    const title = escHtml(a.title || '(untitled)');
+    // Only http(s) links are made clickable — never interpolate a raw scheme
+    const safeUrl = /^https?:\/\//i.test(a.url || '') ? a.url : '';
+    const titleHtml = safeUrl
+      ? `<a href="${escHtml(safeUrl)}" target="_blank" rel="noopener noreferrer"
+            style="color:var(--text);text-decoration:none;border-bottom:1px dotted var(--text3)"
+            onmouseover="this.style.color='var(--yellow)'" onmouseout="this.style.color='var(--text)'">${title} ↗</a>`
+      : title;
+    const sourceHtml = a.source
+      ? `<span style="color:var(--text3);font-size:10px;white-space:nowrap">${escHtml(a.source)}</span>`
+      : '';
+
+    return `<div style="padding:10px 0;border-bottom:1px solid var(--bg3)">
+      <div style="display:flex;gap:10px;align-items:baseline">
+        <span style="color:var(--text3);font-size:10px;min-width:18px">${i + 1}</span>
+        <span style="color:var(--yellow);font-size:10px;white-space:nowrap">${escHtml((a.date || '').slice(0, 10))}</span>
+        <span style="color:var(--text);font-size:12px;font-weight:600">${titleHtml}</span>
+      </div>
+      ${sourceHtml ? `<div style="margin-left:38px;margin-top:2px">${sourceHtml}</div>` : ''}
+      ${summary ? `<div style="color:var(--text2);font-size:11px;line-height:1.6;margin-top:4px;margin-left:38px">${escHtml(summary.slice(0, 300))}${summary.length > 300 ? '…' : ''}</div>` : ''}
+    </div>`;
+  }).join('');
+
+  return `<div class="output-block">
+    <div class="cmd-echo">${escHtml(cmd)}</div>
+    <div class="output-header">NEWS — ${escHtml(d.symbol || '')} · ${articles.length} STORIES</div>
+    <div>${items}</div>
+  </div>`;
+}
+
+function renderDCF(data, cmd) {
+  const d = data.data || {};
+  const cur = d.currency || 'USD';
+  const sym = { USD:'$', EUR:'€', GBP:'£', JPY:'¥', HKD:'HK$' }[cur] || (cur ? cur + ' ' : '');
+  const rate = v => v == null ? 'N/A' : `${(v * 100).toFixed(2)}%`;
+  const px = v => v == null ? 'N/A' : `${sym}${v.toFixed(2)}`;
+
+  const up = d.upside_pct;
+  const upHtml = up == null ? 'N/A'
+    : `<span class="${up >= 0 ? 'price-up price-arrow-up' : 'price-down price-arrow-down'}">${Math.abs(up * 100).toFixed(1)}%</span>`;
+
+  let html = `<div class="output-block">
+    <div class="cmd-echo">${escHtml(cmd)}</div>
+    <div class="output-ticker">${escHtml(d.symbol || '')}</div>
+    <div class="output-subtitle">Discounted Cash Flow · ${escHtml(cur)}</div>
+    <div class="kv-grid">
+      <div class="kv-row"><span class="kv-key">DCF Fair Value</span><span class="kv-val gold">${px(d.dcf_per_share)}</span></div>
+      <div class="kv-row"><span class="kv-key">Current Price</span><span class="kv-val">${px(d.current_price)}</span></div>
+      <div class="kv-row"><span class="kv-key">Upside / (Downside)</span><span class="kv-val">${upHtml}</span></div>
+      <div class="kv-row"><span class="kv-key">WACC</span><span class="kv-val">${rate(d.wacc)}</span></div>
+      <div class="kv-row"><span class="kv-key">Cost of Equity</span><span class="kv-val">${rate(d.cost_of_equity)}</span></div>
+      <div class="kv-row"><span class="kv-key">Cost of Debt</span><span class="kv-val">${rate(d.cost_of_debt)}</span></div>
+      <div class="kv-row"><span class="kv-key">Risk-free (10Y)</span><span class="kv-val">${rate(d.rf)}</span></div>
+      <div class="kv-row"><span class="kv-key">Equity Risk Prem.</span><span class="kv-val">${rate(d.erp)}</span></div>
+      <div class="kv-row"><span class="kv-key">Beta (levered)</span><span class="kv-val">${d.beta_levered != null ? d.beta_levered.toFixed(3) : 'N/A'}</span></div>
+      <div class="kv-row"><span class="kv-key">Terminal Growth</span><span class="kv-val">${rate(d.terminal_growth)}</span></div>
+      <div class="kv-row"><span class="kv-key">Tax Rate</span><span class="kv-val">${rate(d.tax_rate)}</span></div>
+      <div class="kv-row"><span class="kv-key">Revenue CAGR</span><span class="kv-val">${rate(d.revenue_cagr)}</span></div>
+    </div>
+
+    <div class="section-divider">EQUITY BRIDGE</div>
+    <div class="kv-grid">
+      <div class="kv-row"><span class="kv-key">PV of Forecast FCFF</span><span class="kv-val">${fmt(d.pv_discrete, cur)}</span></div>
+      <div class="kv-row"><span class="kv-key">PV of Terminal Value</span><span class="kv-val">${fmt(d.pv_terminal, cur)}</span></div>
+      <div class="kv-row"><span class="kv-key">Enterprise Value</span><span class="kv-val gold">${fmt(d.enterprise_value_dcf, cur)}</span></div>
+      <div class="kv-row"><span class="kv-key">Less: Total Debt</span><span class="kv-val">${fmt(d.total_debt, cur)}</span></div>
+      <div class="kv-row"><span class="kv-key">Plus: Cash</span><span class="kv-val">${fmt(d.cash, cur)}</span></div>
+      <div class="kv-row"><span class="kv-key">Equity Value</span><span class="kv-val gold">${fmt(d.equity_value_dcf, cur)}</span></div>
+    </div>`;
+
+  const proj = d.fcff_projections || [];
+  if (proj.length) {
+    const rows = [
+      ['Revenue', 'revenue'], ['EBIT', 'ebit'], ['EBIT after tax', 'ebit_after_tax'],
+      ['D&A', 'da'], ['Δ NWC', 'nwc_change'], ['CapEx', 'capex'],
+      ['FCFF', 'fcff'], ['PV of FCFF', 'pv_fcff'],
+    ];
+    const thead = `<tr><th>Metric</th>${proj.map(p => `<th style="text-align:right">${escHtml(String(p.year || ''))}</th>`).join('')}</tr>`;
+    const tbody = rows.map(([label, key]) =>
+      `<tr><td>${label}</td>${proj.map(p => `<td style="text-align:right">${fmt(p[key], cur)}</td>`).join('')}</tr>`
+    ).join('');
+    html += `<div class="section-divider">FCFF PROJECTION</div>
+      <table class="output-table"><thead>${thead}</thead><tbody>${tbody}</tbody></table>`;
+  }
+
+  const sw = d.sensitivity_wacc || [], stg = d.sensitivity_tg || [], grid = d.sensitivity_grid || [];
+  if (sw.length && stg.length && grid.length) {
+    const price = d.current_price;
+    const thead = `<tr><th>WACC \\ g</th>${stg.map(g => `<th style="text-align:right">${(g * 100).toFixed(1)}%</th>`).join('')}</tr>`;
+    const tbody = sw.map((w, i) => {
+      const cells = (grid[i] || []).map(v => {
+        if (!v) return `<td style="text-align:right;color:var(--text3)">N/A</td>`;
+        const cls = price == null ? '' : (v > price ? 'price-up' : 'price-down');
+        return `<td style="text-align:right" class="${cls}">${sym}${v.toFixed(2)}</td>`;
+      }).join('');
+      return `<tr><td style="color:var(--yellow)">${(w * 100).toFixed(2)}%</td>${cells}</tr>`;
+    }).join('');
+    html += `<div class="section-divider">SENSITIVITY — FAIR VALUE PER SHARE</div>
+      <table class="output-table"><thead>${thead}</thead><tbody>${tbody}</tbody></table>`;
+  }
+
+  if (d.using_fallback_rates) {
+    html += `<div style="color:var(--text3);font-size:10px;margin-top:8px">Note: live Treasury/Damodaran fetch failed — fallback rates used.</div>`;
+  }
+  html += '</div>';
+  return html;
+}
+
+function renderQTR(data, cmd) {
+  const d = data.data || {};
+  const cur = d.currency || '';
+  const sym = { USD:'$', EUR:'€', GBP:'£', JPY:'¥', HKD:'HK$' }[cur] || (cur ? cur + ' ' : '');
+  const sections = [
+    ['income', 'INCOME STATEMENT'],
+    ['balance', 'BALANCE SHEET'],
+    ['cashflow', 'CASH FLOW'],
+  ].filter(([f]) => (d[f] || []).length);
+
+  if (!sections.length) return renderGeneric(data, cmd);
+
+  let html = `<div class="output-block">
+    <div class="cmd-echo">${escHtml(cmd)}</div>
+    <div class="output-header">QUARTERLY FINANCIALS — ${escHtml(d.symbol || '')}${cur ? ' · ' + escHtml(cur) : ''}</div>`;
+
+  for (const [field, title] of sections) {
+    const periods = d[field];
+    const names = [];
+    periods.forEach(p => Object.keys(p.fields || {}).forEach(n => { if (!names.includes(n)) names.push(n); }));
+
+    const thead = `<tr><th>Metric</th>${periods.map(p =>
+      `<th style="text-align:right">${escHtml(`${p.fiscal_year || ''} ${p.quarter || ''}`.trim())}</th>`).join('')}</tr>`;
+
+    const tbody = names.map(n => {
+      const values = periods.map(p => (p.fields || {})[n]);
+      if (values.every(v => v == null)) return '';
+      // Per-share figures are small — fmt() would round them to whole units
+      const isPerShare = /EPS|PER SHARE/i.test(n);
+      const label = n.startsWith('~') ? escHtml(n.slice(1)) + ' <span style="color:var(--text3)">*</span>' : escHtml(n);
+      const cells = values.map(v =>
+        `<td style="text-align:right">${v == null ? 'N/A' : (isPerShare ? sym + v.toFixed(2) : fmt(v, cur))}</td>`
+      ).join('');
+      return `<tr><td>${label}</td>${cells}</tr>`;
+    }).join('');
+
+    html += `<div class="section-divider">${title}</div>
+      <table class="output-table"><thead>${thead}</thead><tbody>${tbody}</tbody></table>`;
+  }
+
+  html += `<div style="color:var(--text3);font-size:10px;margin-top:8px">* company-specific line item from the source filing</div>
+  </div>`;
+  return html;
+}
+
+function filterAlphaManual(input) {
+  const root = input.closest('.alpha-manual');
+  const query = input.value.toLocaleLowerCase().trim();
+  let visible = 0;
+  root.querySelectorAll('.alpha-manual-entry').forEach(entry => {
+    entry.hidden = !entry.textContent.toLocaleLowerCase().includes(query);
+    if (!entry.hidden) visible++;
+  });
+  root.querySelector('.alpha-manual-count').textContent = `${visible} operators`;
+}
+
+function renderAlphaManual(d) {
+  return `<section class="alpha-manual output-block">
+    <div class="output-header">OPERATOR LIST &amp; DATA MANUAL</div>
+    <p class="alpha-field-note">This manual lists the currently registered operators. Click an operator to view its parameters and implementation notes. Registration does not guarantee numerical equivalence with BRAIN. Signatures show local parameter names; expression aliases such as filter / range / buckets / hump are also supported.</p>
+    <div class="output-header">SUPPORTED DATA · CONNECTED FIELDS</div>
+    <div class="alpha-table-wrap"><table class="output-table"><thead><tr><th>Field</th><th>Description</th><th>Source / Availability</th><th>Notes</th></tr></thead>
+    <tbody>${(d.fields || []).map(field => `<tr><td>${escHtml(field.name)}</td><td>${escHtml(field.description)}</td><td>${escHtml(field.availability)}</td><td>${escHtml(field.notes)}</td></tr>`).join('')}</tbody></table></div>
+    <p class="alpha-field-note">Accessible data is not automatically ready for factor research. Online inputs currently cover daily equity matrices; financial statements, valuations, news and analyst estimates are not yet connected to ALPHA. Additional fields require alignment by date and security, consistent frequencies and units, and actual publication dates to prevent look-ahead bias. Text must first be converted into numeric signals. Group operators can use numeric industry codes supplied in CSV files.</p>
+    <p class="alpha-field-note">A supported field may still have missing observations. Data Coverage in ALPHA results shows the fields loaded for the current run and their non-missing percentages. Online data consists of daily bars with a one-hour cache, not tick data.</p>
+    <div class="output-header">OPERATORS · <span class="alpha-manual-count">${(d.operator_details || []).length} operators</span></div>
+    <label>Search names, categories, parameters or descriptions
+      <input class="alpha-manual-search" type="search" placeholder="rank / regression / group / volume …" oninput="filterAlphaManual(this)">
+    </label>
+    ${(d.operator_details || []).map(op => `<details class="alpha-manual-entry"><summary>${escHtml(op.signature)}<small>${escHtml(op.category)}</small></summary><pre>${escHtml(op.description)}</pre></details>`).join('')}
+    <p class="alpha-field-note">Example expression: <code>rank(ts_delta(close, 5))</code>. Constants and reduce / vec outputs that do not form a complete date × security matrix cannot be evaluated directly as final factors, but may be used as intermediate values in a composed expression.</p>
+  </section>`;
+}
+
+function renderALPHA(data, cmd) {
+  const d = data.data;
+  if (d.operators.length) return d.operator_details ? renderAlphaManual(d) : `<p>Restart the MINIBB backend to load the operator manual.</p>`;
+  let html = `<div class="output-card"><h3>ALPHA | ${escHtml(d.dataset)}</h3>
+    <div>${escHtml(d.expression)}</div><p>${d.dates} dates | ${d.securities} securities | ${(d.coverage*100).toFixed(1)}% coverage</p>
+    ${d.notes.map(n => `<p>${escHtml(n)}</p>`).join('')}`;
+  html += `<p>Data: ${escHtml(d.first_date || '')} to ${escHtml(d.last_date || '')}</p>`;
+  html += `<button class="fn-tab" type="button" onclick="executeCommand('ALPHA --operators')">Operator List &amp; Data Manual</button>`;
+  if (d.fields && d.fields.length) {
+    html += `<details class="alpha-manual-entry"><summary>Data Coverage · ${d.fields.length} fields</summary><div class="alpha-table-wrap"><table class="output-table"><thead><tr><th>Field</th><th>Non-missing values</th></tr></thead><tbody>${d.fields.map(field => `<tr><td>${escHtml(field.name)}</td><td>${(field.coverage * 100).toFixed(1)}%</td></tr>`).join('')}</tbody></table></div></details>`;
+  }
+  if (d.sources && d.sources.length) {
+    html += `<table class="output-table"><thead><tr><th>Security</th><th>Source</th><th>First date</th><th>Last date</th><th>Fetched (UTC)</th></tr></thead><tbody>${d.sources.map(row => `<tr><td>${escHtml(row.security)}</td><td>${escHtml(row.source)}</td><td>${escHtml(row.first_date)}</td><td>${escHtml(row.last_date)}</td><td>${escHtml(row.fetched_at || 'Unknown (cached)')}</td></tr>`).join('')}</tbody></table>`;
+  }
+  const metricNames = {IC_mean: 'Mean IC', IC_std: 'IC Std Dev', IR: 'IC IR',
+    IC_positive: 'Positive IC', RankIC_mean: 'Mean Rank IC', RankIC_std: 'Rank IC Std Dev', RankIR: 'Rank IC IR'};
+  const formatFactor = value => typeof value === 'number' && Number.isFinite(value) ? value.toFixed(4) : 'N/A';
+  html += `<section class="alpha-results" aria-label="Factor results">
+    <div class="output-header">FACTOR METRICS</div>
+    <div class="alpha-metrics">${Object.entries(d.metrics || {}).map(([key, value]) => `
+      <div class="alpha-metric"><div class="alpha-metric-label">${escHtml(metricNames[key] || key)}</div>
+      <div class="alpha-metric-value">${key === 'IC_positive' && typeof value === 'number' && Number.isFinite(value) ? (value * 100).toFixed(1) + '%' : formatFactor(value)}</div></div>`).join('')}</div>
+    <div class="output-header">LATEST FACTOR RANKING · ${escHtml(d.last_date || '')}</div>
+    <div class="alpha-table-wrap"><table class="output-table alpha-ranking">
+      <thead><tr><th>#</th><th>Security</th><th>Factor value</th></tr></thead>
+      <tbody>${(d.latest || []).map((row, index) => `<tr><td>${index + 1}</td><td>${escHtml(row.security)}</td><td>${formatFactor(row.factor)}</td></tr>`).join('') || '<tr><td colspan="3">No factor values available</td></tr>'}</tbody>
+    </table></div></section>`;
+  const rows = d.curve.filter(r => Number.isFinite(r['L-S']));
+  if (rows.length > 1) {
+    const values = rows.map(r => r['L-S']);
+    const lo = Math.min(...values), hi = Math.max(...values);
+    const pts = values.map((v,i) => `${20+i*660/(values.length-1)},${150-(v-lo)*125/(hi-lo || 1)}`).join(' ');
+    html += `<p>Gross Q5 - Q1 cumulative value | ${escHtml(rows[0].date)} to ${escHtml(rows[rows.length-1].date)} | ${values[values.length-1].toFixed(4)}</p>
+      <svg viewBox="0 0 700 175" role="img" aria-label="Gross long short cumulative value" style="max-width:850px;width:100%"><polyline fill="none" stroke="#ffcc00" stroke-width="2" points="${pts}"/></svg>`;
+  }
+  return html + '</div>';
+}
+
 function renderGeneric(data, cmd) {
   const d = data.data || data;
 
@@ -1833,7 +2106,7 @@ async function executeCommand(raw) {
     const fnCmd = parts[0].toUpperCase();
 
     // Ticker load response
-    if (data.loaded_ticker && !['DES','FA','GP','ANR','COMP','RPT','RV','FXIP','FXCA','FXHV','FRD','WCR'].includes(fnCmd)) {
+    if (data.loaded_ticker && !['ALPHA','DES','FA','GP','ANR','COMP','RPT','RV','NEWS','DCF','QTR','FXIP','FXCA','FXHV','FRD','WCR'].includes(fnCmd)) {
       showOutput(`<div class="output-block">
         <div class="cmd-echo">${escHtml(cmd)}</div>
         <div class="output-success">✓ Loaded: ${escHtml(data.loaded_ticker)}</div>
@@ -1851,7 +2124,10 @@ async function executeCommand(raw) {
       case 'COMP': html = renderCOMP(data, cmd); break;
       case 'RV':   html = renderRV(data, cmd); break;
       case 'FXIP': html = renderFXIP(data, cmd); break;
-      case 'GP':   html = renderGP(data, cmd); break;
+      case 'NEWS': html = renderNEWS(data, cmd); break;
+      case 'DCF':  html = renderDCF(data, cmd); break;
+      case 'ALPHA': html = renderALPHA(data, cmd); break;
+      case 'QTR':  html = renderQTR(data, cmd); break;
       default:     html = renderGeneric(data, cmd);
     }
     showOutput(html);
@@ -1881,6 +2157,10 @@ function renderHelp() {
     ['COMP &lt;GO&gt;', 'Comparable companies side-by-side', 'COMP &lt;GO&gt;'],
     ['RPT &lt;GO&gt;', 'Full equity report (HTML)', 'RPT &lt;GO&gt;'],
     ['RV &lt;GO&gt;', 'Relative value vs. peers', 'RV &lt;GO&gt;'],
+    ['NEWS &lt;GO&gt;', 'Recent company headlines', 'NEWS --limit 20 &lt;GO&gt;'],
+    ['DCF &lt;GO&gt;', 'Discounted cash flow fair value', 'DCF &lt;GO&gt;'],
+    ['ALPHA &lt;GO&gt;', 'Factor research (online daily prices)', 'ALPHA --expression rank(ts_delta(close, 5))'],
+    ['QTR &lt;GO&gt;', 'Quarterly financials (IS / BS / CF)', 'QTR --quarters 12 --statement IS &lt;GO&gt;'],
     ['FXIP &lt;GO&gt;', 'FX spot monitor: G10/EM vs USD', 'FXIP --group em &lt;GO&gt;'],
     ['FXCA &lt;GO&gt;', 'FX calculator', 'FXCA --from USD --to JPY --amount 1000 &lt;GO&gt;'],
     ['FXHV &lt;GO&gt;', 'FX historical volatility', 'FXHV --base EUR --quote USD &lt;GO&gt;'],

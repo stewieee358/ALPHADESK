@@ -1,5 +1,9 @@
 # Environment / secrets
 .env
+.env.*
+!.env.example
+*.pem
+*.key
 
 # Python
 __pycache__/
@@ -13,6 +17,25 @@ build/
 # Cache
 .cache/
 *.db
+.ruff_cache/
+.pytest_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+*.log
+
+# Generated reports and local research data
+/reports/*
+!/reports/README.md
+/data/factors/*
+!/data/factors/README.md
+
+# Local task notes and restoration metadata
+/task_plan.md
+/findings.md
+/progress.md
+/docs/factor_restore_manifest.json
+/docs/factor_market_smoke.json
 
 # IDE
 .vscode/

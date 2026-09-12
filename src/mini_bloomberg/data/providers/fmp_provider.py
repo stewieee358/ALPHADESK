@@ -16,6 +16,7 @@ NOT available on free tier:
   /stable/analyst-stock-recommendations → 404
 """
 
+from datetime import datetime, timezone
 import httpx
 
 from mini_bloomberg.config import get_settings
@@ -90,7 +91,8 @@ def get_price_history(ticker: Ticker, limit: int = 365) -> PriceHistory:
     if not bars_raw:
         raise DataSourceError(f"FMP: no price history for {ticker.symbol}")
     bars = [PriceBar.from_fmp(b) for b in bars_raw]
-    return PriceHistory(symbol=ticker.symbol, bars=bars)
+    return PriceHistory(symbol=ticker.symbol, bars=bars, source="FMP",
+                        fetched_at=datetime.now(timezone.utc).isoformat())
 
 
 # ─── Analyst / price targets ──────────────────────────────────────────────────

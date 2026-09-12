@@ -49,6 +49,7 @@ def _get_session():
 
 
 def _get_registry():
+    from mini_bloomberg.functions.alpha import ALPHA
     from mini_bloomberg.functions.des  import DES
     from mini_bloomberg.functions.fa   import FA
     from mini_bloomberg.functions.gp   import GP
@@ -56,14 +57,18 @@ def _get_registry():
     from mini_bloomberg.functions.comp import COMP
     from mini_bloomberg.functions.rpt  import RPT
     from mini_bloomberg.functions.rv   import RV
+    from mini_bloomberg.functions.news import NEWS
+    from mini_bloomberg.functions.dcf  import DCF
+    from mini_bloomberg.functions.qtr  import QTR
     from mini_bloomberg.functions.fxip import FXIP
     from mini_bloomberg.functions.fxca import FXCA
     from mini_bloomberg.functions.fxhv import FXHV
     from mini_bloomberg.functions.frd  import FRD
     from mini_bloomberg.functions.wcr  import WCR
     return {
-        "DES": DES, "FA": FA, "GP": GP, "ANR": ANR,
+        "ALPHA": ALPHA, "DES": DES, "FA": FA, "GP": GP, "ANR": ANR,
         "COMP": COMP, "RPT": RPT, "RV": RV,
+        "NEWS": NEWS, "DCF": DCF, "QTR": QTR,
         "FXIP": FXIP, "FXCA": FXCA, "FXHV": FXHV, "FRD": FRD, "WCR": WCR,
     }
 
@@ -74,6 +79,7 @@ _STR_FLAGS = {
     "from": "from_ccy", "from-ccy": "from_ccy",
     "to": "to_ccy", "to-ccy": "to_ccy",
     "group": "group", "sort-by": "sort_by", "sortby": "sort_by",
+    "statement": "statement", "stmt": "statement",
 }
 
 
@@ -113,6 +119,9 @@ def _looks_like_ticker(tokens: list[str]) -> bool:
 
 def _parse_kwargs(cmd: str, args: list[str]) -> dict:
     """Parse optional ticker + flag args into a kwargs dict."""
+    if cmd.upper() == "ALPHA":
+        from mini_bloomberg.functions.alpha import parse_alpha_args
+        return parse_alpha_args(args)
     kwargs: dict = {}
     from mini_bloomberg.core.ticker import parse_ticker
     from mini_bloomberg.core.errors import TickerError
@@ -147,6 +156,16 @@ def _parse_kwargs(cmd: str, args: list[str]) -> dict:
         if tok in ("years", "y") and i + 1 < len(args):
             try:
                 kwargs["years"] = int(args[i + 1]); i += 2; continue
+            except ValueError:
+                pass
+        if tok in ("limit", "n") and i + 1 < len(args):
+            try:
+                kwargs["limit"] = int(args[i + 1]); i += 2; continue
+            except ValueError:
+                pass
+        if tok in ("quarters", "q") and i + 1 < len(args):
+            try:
+                kwargs["quarters"] = int(args[i + 1]); i += 2; continue
             except ValueError:
                 pass
         if tok == "amount" and i + 1 < len(args):
@@ -224,9 +243,15 @@ async def run_command(req: CommandRequest):
         kwargs = _parse_kwargs(cmd, tokens[1:])
         fn_class = registry[cmd]
         try:
-            result = fn_class().run(**kwargs)
+            if cmd == "ALPHA":
+                from starlette.concurrency import run_in_threadpool
+                result = await run_in_threadpool(fn_class().run, **kwargs)
+            else:
+                result = fn_class().run(**kwargs)
             response: dict[str, Any] = dict(result)
-            response["provider"] = "FMP/OpenBB"
+            response["provider"] = "Local factor engine" if cmd == "ALPHA" else "FMP/OpenBB"
+            if cmd == "ALPHA" and result.get("data", {}).get("sources"):
+                response["provider"] = ", ".join(sorted({row["source"] for row in result["data"]["sources"]}))
             if session.is_loaded:
                 response["loaded_ticker"] = str(session.loaded_ticker)
 
@@ -285,7 +310,8 @@ async def run_agent(req: AgentRequest):
         raise HTTPException(status_code=503, detail=f"Agent dependencies not available: {e}")
 
     settings = get_settings()
-    client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
+    from mini_bloomberg.core.llm import _get_client
+    client = _get_client()
     model = settings.claude_model
 
     # Build message history

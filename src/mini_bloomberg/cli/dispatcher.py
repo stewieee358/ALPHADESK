@@ -17,7 +17,7 @@ from mini_bloomberg.core.session import session
 from mini_bloomberg.core.ticker import parse_ticker
 from mini_bloomberg.render.cli_renderer import (
     console, render_anr, render_comp, render_des, render_fa, render_gp,
-    render_rpt, render_rv,
+    render_rpt, render_rv, render_news, render_dcf, render_qtr,
     render_fxip, render_fxca, render_fxhv, render_frd, render_wcr,
     render_error, render_loaded, render_status, ORANGE, HEADER, DIM, GREEN,
 )
@@ -28,6 +28,7 @@ from rich.panel import Panel
 # ── Function registry ──────────────────────────────────────────────────────────
 
 def _registry():
+    from mini_bloomberg.functions.alpha import ALPHA
     from mini_bloomberg.functions.des  import DES
     from mini_bloomberg.functions.fa   import FA
     from mini_bloomberg.functions.gp   import GP
@@ -35,18 +36,25 @@ def _registry():
     from mini_bloomberg.functions.comp import COMP
     from mini_bloomberg.functions.rpt  import RPT
     from mini_bloomberg.functions.rv   import RV
+    from mini_bloomberg.functions.news import NEWS
+    from mini_bloomberg.functions.dcf  import DCF
+    from mini_bloomberg.functions.qtr  import QTR
     from mini_bloomberg.functions.fxip import FXIP
     from mini_bloomberg.functions.fxca import FXCA
     from mini_bloomberg.functions.fxhv import FXHV
     from mini_bloomberg.functions.frd  import FRD
     from mini_bloomberg.functions.wcr  import WCR
     return {
-        "DES": DES, "FA": FA, "GP": GP, "ANR": ANR,
+        "ALPHA": ALPHA, "DES": DES, "FA": FA, "GP": GP, "ANR": ANR,
         "COMP": COMP, "RPT": RPT, "RV": RV,
+        "NEWS": NEWS, "DCF": DCF, "QTR": QTR,
         "FXIP": FXIP, "FXCA": FXCA, "FXHV": FXHV, "FRD": FRD, "WCR": WCR,
     }
 
+from mini_bloomberg.render.factor_renderer import render_alpha
+
 RENDERERS = {
+    "ALPHA": render_alpha,
     "DES":  render_des,
     "FA":   render_fa,
     "GP":   render_gp,
@@ -54,6 +62,9 @@ RENDERERS = {
     "COMP": render_comp,
     "RPT":  render_rpt,
     "RV":   render_rv,
+    "NEWS": render_news,
+    "DCF":  render_dcf,
+    "QTR":  render_qtr,
     "FXIP": render_fxip,
     "FXCA": render_fxca,
     "FXHV": render_fxhv,
@@ -184,6 +195,9 @@ def _parse_function_kwargs(cmd: str, args: list[str]) -> dict:
          "WCR g10 JPY 1m"    → {ticker: "g10 JPY 1m"}
          "FRD EURUSD"        → {ticker: "EURUSD"}   (existing behaviour)
     """
+    if cmd.upper() == "ALPHA":
+        from mini_bloomberg.functions.alpha import parse_alpha_args
+        return parse_alpha_args(args)
     kwargs: dict = {}
 
     # Commands whose positional args are NOT Bloomberg security tickers but
@@ -237,9 +251,11 @@ def _parse_function_kwargs(cmd: str, args: list[str]) -> dict:
         "from-ccy": "from_ccy",
         "to":       "to_ccy",
         "to-ccy":   "to_ccy",
-        "group":    "group",
-        "sort-by":  "sort_by",
-        "sortby":   "sort_by",
+        "group":     "group",
+        "sort-by":   "sort_by",
+        "sortby":    "sort_by",
+        "statement": "statement",
+        "stmt":      "statement",
     }
     i = 0
     while i < len(args):
@@ -254,6 +270,20 @@ def _parse_function_kwargs(cmd: str, args: list[str]) -> dict:
         if tok in ("years", "y") and i + 1 < len(args):
             try:
                 kwargs["years"] = int(args[i + 1])
+                i += 2
+                continue
+            except ValueError:
+                pass
+        if tok in ("limit", "n") and i + 1 < len(args):
+            try:
+                kwargs["limit"] = int(args[i + 1])
+                i += 2
+                continue
+            except ValueError:
+                pass
+        if tok in ("quarters", "q") and i + 1 < len(args):
+            try:
+                kwargs["quarters"] = int(args[i + 1])
                 i += 2
                 continue
             except ValueError:
@@ -289,6 +319,9 @@ def _render_help() -> None:
         ("COMP <GO>",     "Comparable companies side-by-side",         "COMP <GO>"),
         ("RPT <GO>",      "Full equity report + Markdown file",        "RPT <GO>"),
         ("RV <GO>",       "Relative value vs. peers",                  "RV <GO>"),
+        ("NEWS <GO>",     "Recent company headlines",                  "NEWS --limit 20 <GO>"),
+        ("DCF <GO>",      "Discounted cash flow fair value",           "DCF <GO>"),
+        ("QTR <GO>",      "Quarterly financials (IS/BS/CF)",           "QTR --quarters 12 <GO>"),
         ("FXIP [grp] [ccy] <GO>",  "FX spot monitor: G10/EM vs quote",        "FXIP em EUR <GO>"),
         ("FXCA [ccy ccy] [amt] <GO>", "FX calculator: convert amount",        "FXCA USD JPY 1000 <GO>"),
         ("FXHV [ccy ccy] <GO>",    "FX historical volatility (multi-window)", "FXHV EUR USD <GO>"),
