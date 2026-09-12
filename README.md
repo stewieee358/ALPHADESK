@@ -45,7 +45,7 @@ MINI-BB> ? compare NVDA and AMD profitability <GO>
 | `NEWS` | Retrieve company headlines with publication dates and summaries |
 | `DCF` | Run standalone cash-flow valuation, including WACC, FCFF projections, fair value, and sensitivity analysis, without generating an RPT or requesting AI insights |
 | `QTR` | Inspect quarterly income statements, balance sheets, and cash flows |
-| Configurable AI endpoint | Use direct Anthropic access or an Anthropic-compatible endpoint through `ANTHROPIC_BASE_URL`; see [Setup](#setup) for the Qiniu configuration |
+| Configurable AI endpoint | Configure the API endpoint and model through `ANTHROPIC_BASE_URL` and `CLAUDE_MODEL`; see [Setup](#setup) |
 
 The four new commands (`ALPHA`, `NEWS`, `DCF`, and `QTR`) are available in the
 interactive CLI, web command bar, and AI tools.
@@ -233,19 +233,13 @@ your local `.env`; only the placeholder `.env.example` belongs in Git.
 
 ### 4. Run
 
-For Qiniu AI, set the following in `.env` (use your Qiniu AI key):
+The CLI and Web UI share the settings in `.env`. The default API endpoint is
+`https://api.anthropic.com`. To use an Anthropic-compatible service, set
+`ANTHROPIC_BASE_URL`, `ANTHROPIC_API_KEY`, and `CLAUDE_MODEL` to the endpoint,
+credentials, and model supported by that service.
 
-```dotenv
-ANTHROPIC_API_KEY=your_qiniu_ai_key
-ANTHROPIC_BASE_URL=https://api.qnaigc.com
-CLAUDE_MODEL=claude-4.5-sonnet
-```
-
-Both the CLI and Web UI use this endpoint. Model access depends on your Qiniu
-account. See the [Qiniu Anthropic API documentation](https://apidocs.qnaigc.com/413432574e0).
 Restart the existing server after changing `.env`; running the launcher again
-while the server is active only opens the browser. For direct Anthropic access,
-set `ANTHROPIC_BASE_URL=https://api.anthropic.com` and use an Anthropic key and model ID.
+while the server is active only opens the browser.
 
 **CLI (terminal)**
 ```bash
