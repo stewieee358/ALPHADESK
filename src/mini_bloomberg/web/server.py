@@ -23,7 +23,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 # ── App ────────────────────────────────────────────────────────────────────────
 app = FastAPI(title="Mini-Bloomberg Web API", version="0.1.0")
@@ -223,6 +223,21 @@ async def search_securities(q: str = "", limit: int = 8):
         return {"status": "ok", "items": items, "provider": "Tushare Pro"}
     except Exception as exc:
         return {"status": "error", "items": [], "message": str(exc)}
+
+
+class TranslationRequest(BaseModel):
+    text: str = Field(min_length=1, max_length=12000)
+
+
+@app.post("/api/translate-introduction")
+async def translate_introduction(req: TranslationRequest):
+    from starlette.concurrency import run_in_threadpool
+    from mini_bloomberg.core.translation import translate_introduction as translate
+    try:
+        translated = await run_in_threadpool(translate, req.text)
+        return {"status": "ok", "text": translated}
+    except Exception:
+        raise HTTPException(status_code=502, detail="Translation failed. Check AI configuration and retry.")
 
 
 @app.post("/api/command")

@@ -1049,11 +1049,11 @@ function localAutocomplete(val) {
 
   // Show the likely China security immediately while the name lookup runs.
   if (/^\d{6}$/.test(val)) {
-    items.push({ cmd: val + ' CH Equity', desc: 'A-share · searching Tushare…', provisionalCH: true });
+    items.push({ cmd: val + ' CH Equity', desc: 'A-share · load by code', provisionalCH: true });
   }
 
   const suffixes = ['US Equity', 'HK Equity', 'JP Equity', 'LN Equity', 'FP Equity', 'GR Equity', 'SP Equity'];
-  if (val.length >= 1 && val.length <= 6 && /^[A-Z0-9]+$/.test(val)) {
+  if (val.length >= 1 && val.length <= 6 && /^[A-Z0-9]+$/.test(val) && !/^\d{6}$/.test(val)) {
     suffixes.forEach(s => items.push({ cmd: val + ' ' + s, desc: 'Load security' }));
   }
   return items;
@@ -1079,24 +1079,35 @@ cmdInput.addEventListener('input', () => {
       });
       const payload = await res.json();
       if (sequence !== acSequence || cmdInput.value.trim() !== raw) return;
+      if (!res.ok || payload.status === 'error') {
+        throw new Error(payload.message || payload.detail || `Search failed (${res.status})`);
+      }
       const china = (payload.items || []).map(item => ({
         cmd: item.ticker,
         desc: [item.name, item.exchange, item.industry].filter(Boolean).join(' · '),
       }));
       const seen = new Set();
-      const combined = [...china, ...local.filter(item => !item.provisionalCH)].filter(item => {
+      const combined = [...china, ...local].filter(item => {
         if (seen.has(item.cmd)) return false;
         seen.add(item.cmd);
         return true;
       });
       renderAutocomplete(combined);
     } catch (err) {
-      if (err.name !== 'AbortError' && sequence === acSequence) renderAutocomplete(local);
+      if (err.name !== 'AbortError' && sequence === acSequence && cmdInput.value.trim() === raw) {
+        renderAutocomplete(local);
+        const notice = document.createElement('div');
+        notice.className = 'ac-desc';
+        notice.textContent = `A-share search failed: ${err.message}`;
+        acBox.appendChild(notice);
+        acBox.style.display = 'block';
+      }
     }
   }, 180);
 });
 
 cmdInput.addEventListener('keydown', e => {
+  if (e.isComposing || e.keyCode === 229) return;
   if (acBox.style.display === 'block') {
     if (e.key === 'ArrowDown') {
       e.preventDefault();
@@ -1219,6 +1230,52 @@ function fmtX(v)   { return v == null ? 'N/A' : `${v.toFixed(1)}x`; }
 
 // ── Render functions ───────────────────────────────────────────────────────────
 
+function renderIntroduction(d) {
+  const text = d.description || d.long_description || '';
+  if (!text) return '';
+  const canTranslate = d.currency === 'CNY' && /[\u3400-\u9fff]/.test(text);
+  return `<div class="company-introduction" style="color:var(--text2);font-size:11px;line-height:1.7;margin-top:8px;padding:10px;background:var(--bg2);border-left:2px solid var(--yellow2);">
+    ${canTranslate ? '<button type="button" class="fn-tab" onclick="toggleIntroduction(this)">English (AI)</button><span class="translation-status" role="status"></span>' : ''}
+    <div class="introduction-original" style="white-space:pre-wrap">${escHtml(text)}</div>
+    <div class="introduction-english" style="white-space:pre-wrap" hidden></div>
+  </div>`;
+}
+
+async function toggleIntroduction(button) {
+  const box = button.closest('.company-introduction');
+  const original = box.querySelector('.introduction-original');
+  const english = box.querySelector('.introduction-english');
+  const status = box.querySelector('.translation-status');
+  if (!english.hidden) {
+    english.hidden = true;
+    original.hidden = false;
+    button.textContent = 'English (AI)';
+    return;
+  }
+  if (!english.textContent) {
+    button.disabled = true;
+    status.textContent = ' Translating…';
+    try {
+      const response = await fetch(`${state.apiBase}/api/translate-introduction`, {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({text: original.textContent}),
+      });
+      const result = await response.json();
+      if (!response.ok || !result.text) throw new Error(typeof result.detail === 'string' ? result.detail : 'Translation failed; introduction may exceed the length limit.');
+      english.textContent = result.text;
+      status.textContent = '';
+    } catch (err) {
+      status.textContent = ` ${err.message}`;
+      return;
+    } finally {
+      button.disabled = false;
+    }
+  }
+  original.hidden = true;
+  english.hidden = false;
+  button.textContent = '中文原文';
+}
+
 function renderDES(data, cmd) {
   const d = data.data || {};
   const cur = d.currency || '';
@@ -1244,7 +1301,7 @@ function renderDES(data, cmd) {
       <div class="kv-row"><span class="kv-key">Div. Yield</span><span class="kv-val">${d.dividend_yield != null ? d.dividend_yield.toFixed(2)+'%' : 'N/A'}</span></div>
       <div class="kv-row"><span class="kv-key">Country</span><span class="kv-val">${escHtml(d.country||'N/A')}</span></div>
     </div>
-    ${d.description || d.long_description ? `<div style="color:var(--text2);font-size:11px;line-height:1.7;margin-top:8px;padding:10px;background:var(--bg2);border-left:2px solid var(--yellow2);">${escHtml((d.description||d.long_description||'').slice(0,600))}${(d.description||d.long_description||'').length>600?'…':''}</div>` : ''}
+    ${renderIntroduction(d)}
   </div>`;
 }
 
@@ -2061,6 +2118,8 @@ async function executeCommand(raw) {
 
   // Strip <GO>
   let cmd = line.replace(/<GO>$/i, '').replace(/\bGO$/i, '').trim();
+  const chinaCode = cmd.match(/^(\d{6})(?:\.(?:SH|SZ|BJ))?$/i);
+  if (chinaCode) cmd = `${chinaCode[1]} CH Equity`;
   const upper = cmd.toUpperCase();
 
   // Add to history
