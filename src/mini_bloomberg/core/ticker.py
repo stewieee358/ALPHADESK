@@ -25,6 +25,10 @@ EXCHANGE_TO_YFINANCE: dict[str, str] = {
     "LN": ".L",    # London
     "AU": ".AX",   # Australia
     "CN": ".SS",   # Shanghai (A-shares — limited coverage)
+    "CH": ".SS",   # China; suffix is inferred from the numeric symbol below
+    "SH": ".SS",
+    "SZ": ".SZ",
+    "BJ": ".BJ",
     "KS": ".KS",   # Korea
     "IN": ".NS",   # India NSE
     "SP": ".SI",   # Singapore
@@ -41,11 +45,33 @@ class Ticker(BaseModel):
         return self.exchange_code in US_EXCHANGE_CODES
 
     @property
+    def is_china(self) -> bool:
+        return self.exchange_code in {"CH", "CN", "SH", "SZ", "BJ"}
+
+    @property
+    def tushare_symbol(self) -> str:
+        """Convert a China equity ticker to Tushare's 000001.SZ format."""
+        if not self.is_china:
+            return self.symbol
+        exchange = self.exchange_code
+        if exchange in {"CH", "CN"}:
+            if self.symbol.startswith(("4", "8")):
+                exchange = "BJ"
+            elif self.symbol.startswith(("0", "3")):
+                exchange = "SZ"
+            else:
+                exchange = "SH"
+        return f"{self.symbol}.{exchange}"
+
+    @property
     def yfinance_symbol(self) -> str:
         """Convert to yfinance-compatible symbol, e.g. '7203.T', '0700.HK'."""
         if self.is_us:
             return self.symbol
-        suffix = EXCHANGE_TO_YFINANCE.get(self.exchange_code, "")
+        exchange = self.exchange_code
+        if exchange in {"CH", "CN"}:
+            exchange = self.tushare_symbol.rsplit(".", 1)[-1]
+        suffix = EXCHANGE_TO_YFINANCE.get(exchange, "")
         sym = self.symbol
         # HKEX 5-digit display codes (e.g. 09988, 03993) have a padding leading zero;
         # yfinance uses the underlying 4-digit code (9988.HK, 3993.HK).

@@ -4,11 +4,13 @@ Analyst estimates router: FMP price-target-consensus + OpenBB buy/hold/sell.
 
 from mini_bloomberg.core.errors import DataSourceError
 from mini_bloomberg.core.ticker import Ticker
-from mini_bloomberg.data.providers import fmp_provider, openbb_provider
+from mini_bloomberg.data.providers import fmp_provider, openbb_provider, tushare_provider
 from mini_bloomberg.data.schemas import AnalystRatings
 
 
 def get_analyst_ratings(ticker: Ticker) -> AnalystRatings:
+    if ticker.is_china:
+        return tushare_provider.get_analyst_ratings(ticker)
     ratings = AnalystRatings(symbol=ticker.symbol)
 
     # Price targets from FMP (US only; free tier confirmed working)

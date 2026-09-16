@@ -1,7 +1,9 @@
 import json
 import tempfile
+import types
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 import numpy as np
 import pandas as pd
@@ -68,6 +70,42 @@ class FactorTests(unittest.TestCase):
             self.assertEqual(ctx.dates[0], pd.Timestamp('2024-01-01'))
             with p.open('a') as f: f.write('20240101,000001,11\n')
             with self.assertRaises(ValueError): DataLoader.from_csv(str(p))
+
+    def test_tushare_gateway_uses_authenticated_pro_bar(self):
+        calls = []
+
+        class FakePro:
+            pass
+
+        pro = FakePro()
+
+        def pro_api(token):
+            calls.append(("pro_api", token))
+            return pro
+
+        def pro_bar(**kwargs):
+            calls.append(("pro_bar", kwargs))
+            return pd.DataFrame({
+                "trade_date": ["20240102", "20240103"],
+                "close": [10.0, 11.0], "open": [9.5, 10.5],
+                "high": [10.5, 11.5], "low": [9.0, 10.0],
+                "vol": [100.0, 120.0], "amount": [1000.0, 1320.0],
+            })
+
+        fake_tushare = types.SimpleNamespace(pro_api=pro_api, pro_bar=pro_bar)
+        with patch.dict("sys.modules", {"tushare": fake_tushare}):
+            ctx = DataLoader(
+                source="tushare",
+                token="test-token",
+                api_url="https://t.xiaodefa.top/",
+            ).load(["000001.SZ"], "20240101", "20240131")
+
+        self.assertEqual(pro._DataApi__http_url, "https://t.xiaodefa.top/")
+        self.assertEqual(calls[0], ("pro_api", "test-token"))
+        self.assertIs(calls[1][1]["api"], pro)
+        self.assertEqual(calls[1][1]["ts_code"], "000001.SZ")
+        self.assertIn("volume", ctx.fields)
+        self.assertIn("returns", ctx.fields)
 
     def test_demo_json_and_error_paths(self):
         result = ALPHA().run(dataset="demo")

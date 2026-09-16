@@ -3,15 +3,25 @@
 import pandas as pd
 import numpy as np
 from typing import List, Optional, Dict
+from urllib.parse import urlparse
 from ..core.context import Context
 
 
 class DataLoader:
     "Load data from a supported provider, a local CSV file, or an existing mapping of DataFrames."
 
-    def __init__(self, source: str = "local", token: str = None):
+    def __init__(self, source: str = "local", token: str = None, api_url: str = None):
         self.source = source
         self.token = token
+        self.api_url = api_url
+
+        # Keep explicit arguments as the highest-priority configuration while
+        # allowing normal Mini-Bloomberg usage to read credentials from .env.
+        if self.source == "tushare" and (not self.token or not self.api_url):
+            from mini_bloomberg.config import get_settings
+            settings = get_settings()
+            self.token = self.token or settings.tushare_token
+            self.api_url = self.api_url or settings.tushare_api_url
 
     def load(
         self,
@@ -36,14 +46,24 @@ class DataLoader:
     def _load_tushare(
         self, stock_list, start_date, end_date, fields
     ) -> Context:
-        "Load Tushare daily data for stock_list and the requested dates. Requires the optional tushare package and a valid token. Map vol to volume and derive returns from close."
+        "Load Tushare Pro daily bars for stock_list and the requested dates. Requires the optional tushare package and a valid token. Map vol to volume and derive returns from close."
         try:
             import tushare as ts
         except ImportError:
             raise ImportError("Install the optional Tushare SDK first: pip install tushare")
 
-        ts.set_token(self.token)
-        pro = ts.pro_api()
+        if not self.token:
+            raise ValueError("Set TUSHARE_TOKEN in .env or pass token= to DataLoader")
+
+        pro = ts.pro_api(self.token)
+        if self.api_url:
+            parsed = urlparse(self.api_url)
+            if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+                raise ValueError("TUSHARE_API_URL must be a valid http(s) URL")
+            # Tushare's SDK does not expose a public base-URL setter. Compatible
+            # gateways use the client's internal URL field documented by the
+            # gateway provider.
+            pro._DataApi__http_url = self.api_url.rstrip("/") + "/"
 
         if fields is None:
             fields = ["close", "open", "high", "low", "vol", "amount"]
@@ -56,7 +76,14 @@ class DataLoader:
 
         all_data = []
         for ts_code in stock_list:
-            df = pro.daily(ts_code=ts_code, start_date=start_date, end_date=end_date)
+            # The compatible gateway requires pro_bar calls to receive the
+            # authenticated API client explicitly.
+            df = ts.pro_bar(
+                api=pro,
+                ts_code=ts_code,
+                start_date=start_date,
+                end_date=end_date,
+            )
             if df is not None and not df.empty:
                 df["trade_date"] = pd.to_datetime(df["trade_date"])
                 df = df.set_index("trade_date").sort_index()

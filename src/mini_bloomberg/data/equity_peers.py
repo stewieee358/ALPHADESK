@@ -15,11 +15,13 @@ from mini_bloomberg.config import get_settings
 from mini_bloomberg.core.cache import cached
 from mini_bloomberg.core.errors import DataSourceError
 from mini_bloomberg.core.ticker import Ticker
-from mini_bloomberg.data.providers import openbb_provider
+from mini_bloomberg.data.providers import openbb_provider, tushare_provider
 from mini_bloomberg.data.schemas import Comparables, PeerProfile
 
 
 def get_comparables(ticker: Ticker) -> Comparables:
+    if ticker.is_china:
+        return tushare_provider.get_comparables(ticker)
     peers_raw = _get_peer_list(ticker)
     if not peers_raw:
         return Comparables(symbol=ticker.symbol, peers=[])

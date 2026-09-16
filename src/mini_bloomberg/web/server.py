@@ -36,6 +36,17 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
+@app.middleware("http")
+async def disable_web_ui_cache(request, call_next):
+    """Keep the single-page UI fresh while the local server is under development."""
+    response = await call_next(request)
+    if request.url.path == "/" or request.url.path.startswith("/static/"):
+        response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+    return response
+
 # Serve the web UI at /
 _WEB_DIR = Path(__file__).parent / "static"
 if _WEB_DIR.exists():
@@ -199,6 +210,21 @@ async def serve_ui():
     )
 
 
+@app.get("/api/securities/search")
+async def search_securities(q: str = "", limit: int = 8):
+    """Search listed mainland-China equities for command-bar autocomplete."""
+    query = q.strip()
+    if not query:
+        return {"status": "ok", "items": []}
+    try:
+        from starlette.concurrency import run_in_threadpool
+        from mini_bloomberg.data.providers.tushare_provider import search_securities as _search
+        items = await run_in_threadpool(_search, query, max(1, min(limit, 20)))
+        return {"status": "ok", "items": items, "provider": "Tushare Pro"}
+    except Exception as exc:
+        return {"status": "error", "items": [], "message": str(exc)}
+
+
 @app.post("/api/command")
 async def run_command(req: CommandRequest):
     """
@@ -249,7 +275,9 @@ async def run_command(req: CommandRequest):
             else:
                 result = fn_class().run(**kwargs)
             response: dict[str, Any] = dict(result)
-            response["provider"] = "Local factor engine" if cmd == "ALPHA" else "FMP/OpenBB"
+            response["provider"] = "Local factor engine" if cmd == "ALPHA" else (
+                "Tushare Pro" if session.is_loaded and session.loaded_ticker.is_china else "FMP/OpenBB"
+            )
             if cmd == "ALPHA" and result.get("data", {}).get("sources"):
                 response["provider"] = ", ".join(sorted({row["source"] for row in result["data"]["sources"]}))
             if session.is_loaded:

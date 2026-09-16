@@ -1018,28 +1018,18 @@ const cmdInput = document.getElementById('cmd-input');
 const acBox = document.getElementById('autocomplete');
 let acIdx = -1;
 let acItems = [];
+let acTimer = null;
+let acRequest = null;
+let acSequence = 0;
 
-cmdInput.addEventListener('input', () => {
-  const val = cmdInput.value.trim().toUpperCase();
-  acItems = [];
-  if (!val || val.startsWith('?')) { acBox.style.display = 'none'; return; }
-
-  // Match commands
-  const matches = CMDS.filter(c => c.cmd.startsWith(val));
-
-  // Ticker suffixes
-  const suffixes = ['US Equity', 'HK Equity', 'JP Equity', 'LN Equity', 'FP Equity', 'GR Equity', 'SP Equity'];
-  if (val.length >= 1 && val.length <= 6 && /^[A-Z0-9]+$/.test(val)) {
-    suffixes.forEach(s => acItems.push({ cmd: val + ' ' + s, desc: 'Load security' }));
-  }
-  acItems = [...matches, ...acItems].slice(0, 8);
-
+function renderAutocomplete(items) {
+  acItems = items.slice(0, 8);
   if (!acItems.length) { acBox.style.display = 'none'; return; }
 
   acBox.innerHTML = acItems.map((it, i) =>
     `<div class="ac-item" data-i="${i}">
-      <span class="ac-cmd">${it.cmd}</span>
-      <span class="ac-desc">${it.desc}</span>
+      <span class="ac-cmd">${escHtml(it.cmd)}</span>
+      <span class="ac-desc">${escHtml(it.desc)}</span>
     </div>`
   ).join('');
   acBox.style.display = 'block';
@@ -1047,11 +1037,63 @@ cmdInput.addEventListener('input', () => {
 
   acBox.querySelectorAll('.ac-item').forEach(el => {
     el.addEventListener('click', () => {
-      cmdInput.value = el.querySelector('.ac-cmd').textContent;
+      cmdInput.value = acItems[Number(el.dataset.i)].cmd;
       acBox.style.display = 'none';
       cmdInput.focus();
     });
   });
+}
+
+function localAutocomplete(val) {
+  const items = CMDS.filter(c => c.cmd.startsWith(val));
+
+  // Show the likely China security immediately while the name lookup runs.
+  if (/^\d{6}$/.test(val)) {
+    items.push({ cmd: val + ' CH Equity', desc: 'A-share · searching Tushare…', provisionalCH: true });
+  }
+
+  const suffixes = ['US Equity', 'HK Equity', 'JP Equity', 'LN Equity', 'FP Equity', 'GR Equity', 'SP Equity'];
+  if (val.length >= 1 && val.length <= 6 && /^[A-Z0-9]+$/.test(val)) {
+    suffixes.forEach(s => items.push({ cmd: val + ' ' + s, desc: 'Load security' }));
+  }
+  return items;
+}
+
+cmdInput.addEventListener('input', () => {
+  const raw = cmdInput.value.trim();
+  const val = raw.toUpperCase();
+  const sequence = ++acSequence;
+  clearTimeout(acTimer);
+  if (acRequest) acRequest.abort();
+  if (!val || val.startsWith('?')) { acBox.style.display = 'none'; return; }
+
+  const local = localAutocomplete(val);
+  renderAutocomplete(local);
+
+  if (/\s/.test(raw)) return;
+  acTimer = setTimeout(async () => {
+    acRequest = new AbortController();
+    try {
+      const res = await fetch(`${state.apiBase}/api/securities/search?q=${encodeURIComponent(raw)}&limit=8`, {
+        signal: acRequest.signal,
+      });
+      const payload = await res.json();
+      if (sequence !== acSequence || cmdInput.value.trim() !== raw) return;
+      const china = (payload.items || []).map(item => ({
+        cmd: item.ticker,
+        desc: [item.name, item.exchange, item.industry].filter(Boolean).join(' · '),
+      }));
+      const seen = new Set();
+      const combined = [...china, ...local.filter(item => !item.provisionalCH)].filter(item => {
+        if (seen.has(item.cmd)) return false;
+        seen.add(item.cmd);
+        return true;
+      });
+      renderAutocomplete(combined);
+    } catch (err) {
+      if (err.name !== 'AbortError' && sequence === acSequence) renderAutocomplete(local);
+    }
+  }, 180);
 });
 
 cmdInput.addEventListener('keydown', e => {

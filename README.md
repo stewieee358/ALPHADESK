@@ -1,6 +1,6 @@
 # MINIBB-V2 — Mini-Bloomberg
 
-A Bloomberg-style CLI and web terminal for equity, FX, and quantitative factor research, powered by **OpenBB + FMP + yfinance** for data and **Claude** as a natural-language orchestrator.
+A Bloomberg-style CLI and web terminal for equity, FX, and quantitative factor research, powered by **OpenBB + FMP + yfinance + Tushare Pro** for data and **Claude** as a natural-language orchestrator.
 
 ```
 ╭─────────────────────────────────────────────────────────────────────────────╮
@@ -45,6 +45,7 @@ MINI-BB> ? compare NVDA and AMD profitability <GO>
 | `NEWS` | Retrieve company headlines with publication dates and summaries |
 | `DCF` command | New standalone access to V1's existing valuation model, without generating an RPT or requesting AI insights; the underlying valuation algorithm is unchanged |
 | `QTR` | Inspect quarterly income statements, balance sheets, and cash flows |
+| Tushare Pro A-share data | Search and analyse Shanghai, Shenzhen, and Beijing listed equities in the CLI and Web UI |
 | Configurable AI endpoint | Configure the API endpoint and model through `ANTHROPIC_BASE_URL` and `CLAUDE_MODEL`; see [Setup](#setup) |
 
 The four new commands (`ALPHA`, `NEWS`, `DCF`, and `QTR`) are available in the
@@ -227,9 +228,61 @@ your local `.env`; only the placeholder `.env.example` belongs in Git.
 | `FMP_API_KEY` | [financialmodelingprep.com](https://financialmodelingprep.com/developer/docs) (free) | FA, GP, ANR, COMP, RV, RPT |
 | `ANTHROPIC_API_KEY` | [console.anthropic.com](https://console.anthropic.com) | `? <query>` AI agent |
 | `OPENBB_PAT` | [my.openbb.co](https://my.openbb.co/app/platform/pat) (optional) | Enhanced non-US equity data |
+| `TUSHARE_TOKEN` | [Tushare Pro](https://tushare.pro/) | A-share DES, GP, FA, QTR, ANR, COMP, RV, DCF, and RPT |
+| `TUSHARE_API_URL` | Official endpoint when blank, or a Tushare-compatible gateway URL | Optional endpoint override for the same A-share functions |
 
 > **FMP free tier**: 250 calls/day. Equity data is cached 24h so normal use stays well within limits.
 > **FX functions** (FXIP/FXCA/FXHV/FRD/WCR) use **yfinance only** — no API key required.
+
+#### Tushare Pro setup for A-shares
+
+Mini-Bloomberg reads the Tushare credentials from the project-root `.env` file.
+The same configuration is used by the CLI, Web UI, and Python/Jupyter code.
+Create `.env` from the template, then set:
+
+```dotenv
+TUSHARE_TOKEN=your_tushare_pro_token
+TUSHARE_API_URL=https://t.xiaodefa.top/
+```
+
+`TUSHARE_TOKEN` is the API token issued for your Tushare Pro account. Set
+`TUSHARE_API_URL` when that token is accessed through a compatible gateway;
+leave it blank to use the Tushare SDK's official endpoint. Do not commit the
+real token to Git. Available records still depend on the points, API permissions,
+and entitlements attached to the account. See the
+[Tushare API documentation](https://tushare.pro/document/2?doc_id=14) for the
+provider's endpoint and permission details.
+
+For mainland-China equities, the following commands use Tushare Pro:
+
+| Command | A-share data used |
+|---|---|
+| `DES` | Company name, exchange, region, industry, description, market cap, shares, P/E, P/B, P/S, and dividend yield |
+| `GP` | Forward-adjusted (`qfq`) daily OHLCV price history |
+| `FA` | Annual income statements, balance sheets, and cash-flow statements |
+| `QTR` | Quarterly income statements, balance sheets, and cash-flow statements |
+| `ANR` | Research-report ratings, broker coverage, and available target-price ranges |
+| `COMP` | Same-industry A-share peers selected using market cap, with valuation and profitability metrics |
+| `RV` | Relative valuation and margin comparison using the Tushare peer set |
+| `DCF` | FCFF valuation using Tushare financial statements, market cap, debt, cash, and share data |
+| `RPT` | Full equity report combining the available Tushare profile, price, financial, analyst, peer, and DCF data |
+
+The factor-research loader can use the same `.env` settings from a notebook or
+Python script. Its stock list uses native Tushare codes:
+
+```python
+from mini_bloomberg.factors import DataLoader
+
+loader = DataLoader(source="tushare")
+ctx = loader.load(
+    stock_list=["000001.SZ", "600519.SH"],
+    start_date="20240101",
+    end_date="20241231",
+)
+```
+
+Passing `token=` or `api_url=` to `DataLoader` overrides the corresponding
+`.env` value for that loader instance.
 
 ### 4. Run
 
@@ -323,7 +376,32 @@ AAPL US Equity      Apple Inc (NYSE/NASDAQ)
 MC FP Equity        LVMH (Euronext Paris)
 SAP GR Equity       SAP SE (XETRA)
 HSBA LN Equity      HSBC Holdings (London)
+600519 CH Equity    Kweichow Moutai (Shanghai, via Tushare Pro)
+000001 CH Equity    Ping An Bank (Shenzhen, via Tushare Pro)
 ```
+
+For mainland-China equities, `CH` automatically infers `.SH`, `.SZ`, or `.BJ`
+from the numeric code. When `TUSHARE_TOKEN` is configured, DES, GP, FA, QTR,
+ANR, COMP, RV, DCF, and RPT use Tushare Pro data. Tushare NEWS requires a
+separate news/announcement entitlement and therefore is not enabled by default.
+
+In the Web UI command bar, A-shares can be found by six-digit code, full or
+partial Chinese company name, Tushare code, or pinyin abbreviation. For example,
+all of the following searches can return the standard Bloomberg-style choice
+`600519 CH Equity`:
+
+```text
+600519
+600519.SH
+贵州茅台
+茅台
+GZMT
+```
+
+The dropdown shows the standard ticker together with company name, exchange,
+and industry. Select the result first, then run `DES`, `GP`, `FA`, `COMP`,
+`DCF`, or another supported equity command. In the CLI, enter the standard
+ticker directly, for example `600519 CH Equity <GO>`.
 
 ### Direct subcommands (no REPL)
 
@@ -396,16 +474,16 @@ Start the FastAPI server (`uv run uvicorn mini_bloomberg.web.server:app --reload
 
 **Equity**
 
-| Data | US equities | Non-US equities |
-|---|---|---|
-| Company profile | OpenBB/yfinance | OpenBB/yfinance |
-| Annual financials (FA/RPT) | FMP `/stable/income-statement` etc. | OpenBB/yfinance |
-| Quarterly financials (QTR / RPT XLSX) | OpenBB → SEC XBRL (`obb.equity.compare.company_facts`, provider `"sec"`) — no API key | yfinance quarterly income statement, balance sheet, and cash flow |
-| Price history | FMP `/stable/historical-price-eod/full` | OpenBB/yfinance |
-| Price targets | FMP `/stable/price-target-consensus` | — |
-| Analyst ratings | OpenBB/yfinance consensus | OpenBB/yfinance |
-| Peers | FMP `/stable/stock-peers` | — |
-| Company news (NEWS / RPT) | OpenBB tries yfinance, FMP, then Benzinga | Same provider chain; coverage and credentials vary |
+| Data | US equities | Other non-US equities | Mainland-China A-shares (`CH`) |
+|---|---|---|---|
+| Company profile | OpenBB/yfinance | OpenBB/yfinance | Tushare `stock_basic`, `stock_company`, and `daily_basic` |
+| Annual financials (FA/RPT) | FMP `/stable/income-statement` etc. | OpenBB/yfinance | Tushare `income`, `balancesheet`, and `cashflow` |
+| Quarterly financials (QTR / RPT XLSX) | OpenBB → SEC XBRL (`obb.equity.compare.company_facts`, provider `"sec"`) — no API key | yfinance quarterly income statement, balance sheet, and cash flow | Tushare `income`, `balancesheet`, and `cashflow`, converted from cumulative disclosures where applicable |
+| Price history | FMP `/stable/historical-price-eod/full` | OpenBB/yfinance | Tushare `pro_bar` with forward adjustment (`qfq`) |
+| Price targets | FMP `/stable/price-target-consensus` | — | Tushare `report_rc`, subject to permission and available report fields |
+| Analyst ratings | OpenBB/yfinance consensus | OpenBB/yfinance | Tushare `report_rc` |
+| Peers | FMP `/stable/stock-peers` | — | Same-industry selection from `stock_basic`, `daily_basic`, and `fina_indicator` |
+| Company news (NEWS / RPT) | OpenBB tries yfinance, FMP, then Benzinga | Same provider chain; coverage and credentials vary | Not enabled by default; separate Tushare entitlement required |
 
 **DCF Valuation (standalone DCF / RPT §5)**
 
@@ -436,7 +514,7 @@ V1. The new command changes access to the model, not its assumptions or accuracy
 | FMP / OpenBB daily histories | Connected to `ALPHA --dataset market` (the default); provider/date provenance included |
 | Synthetic demo | Connected to `ALPHA --dataset demo`; deterministic generated data |
 | Local CSV | Connected to `ALPHA --dataset prices.csv`; files live in `data/factors/` |
-| Tushare / JoinQuant | Supported through the Python loaders in `factors/data/loader.py`; requires the corresponding optional SDK and account credentials |
+| Tushare / JoinQuant factor loaders | Supported through `factors/data/loader.py`; Tushare uses `TUSHARE_TOKEN` and optional `TUSHARE_API_URL`, while JoinQuant requires its own SDK and credentials |
 
 See [factor research documentation](docs/FACTOR_RESEARCH.md) for details.
 
@@ -534,6 +612,12 @@ Infra       uv, python-dotenv, pytest
 - **Bank / financial sector IS**: banks (e.g. HK-listed Chinese banks) use a different income statement structure — no Cost of Revenue, Gross Profit, Operating Income, or EBITDA. These fields show N/A. Net Interest Income and other bank-specific line items are not currently mapped.
 - **Semi-annual reporters**: companies that publish only H1 and annual results (e.g. Lenovo 00992 HK) will show data only for Q2 and the annual column in the XLSX download. Q1, Q3, Q4 cells are blank — this reflects the company's actual reporting cadence, not a data gap.
 
+**Tushare Pro / A-shares**
+- **Account permissions**: endpoint access and field coverage depend on the configured Tushare account's points and entitlements; an unavailable endpoint may return no data even when the token itself is valid.
+- **NEWS entitlement**: A-share news and announcements are not enabled by default because the corresponding Tushare interface requires separate permission.
+- **DCF beta**: the current Tushare company profile does not provide beta. A-share DCF therefore uses the valuation model's fallback beta of `1.0`; treat the result as a scenario estimate rather than an investment recommendation.
+- **Price convention**: A-share `GP` history uses Tushare forward-adjusted (`qfq`) prices, so historical values may differ from unadjusted exchange closes.
+
 **DCF Valuation**
 - **V2 scope**: standalone access was added; the underlying V1 model and its limitations remain unchanged.
 - **Beta relevering**: uses raw yfinance beta (already levered); Damodaran unlevered/relevered beta is not applied
@@ -551,4 +635,3 @@ Infra       uv, python-dotenv, pytest
 - **Research curves, not execution simulation**: close-T signals are paired with subsequent close-to-close returns. Fees, slippage, order execution, financing costs, and delisting returns are not modeled.
 - **Connected fields**: ALPHA currently consumes daily price/volume data. Financial statements, news, and estimates are not automatically available as factor matrices; historical publication-time alignment would be needed.
 - **Input and scale limits**: market mode accepts 10–50 securities and up to 1825 calendar days. CSV input is limited to 20 MB, 500 securities, and 5000 dates.
-

@@ -542,6 +542,9 @@ def _from_yfinance(ticker: Ticker) -> QuarterlyFinancials:
 
 @cached(ttl=21600)  # 6h — quarterly filings are infrequent
 def get_quarterly_financials(ticker: Ticker) -> QuarterlyFinancials:
+    if ticker.is_china:
+        from mini_bloomberg.data.providers import tushare_provider
+        return tushare_provider.get_quarterly_financials(ticker)
     if ticker.is_us:
         try:
             return _from_sec(ticker)

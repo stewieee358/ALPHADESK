@@ -4,7 +4,7 @@ Fundamentals router: FMP for US tickers, OpenBB fallback for non-US.
 
 from mini_bloomberg.core.errors import DataSourceError
 from mini_bloomberg.core.ticker import Ticker
-from mini_bloomberg.data.providers import fmp_provider, openbb_provider
+from mini_bloomberg.data.providers import fmp_provider, openbb_provider, tushare_provider
 from mini_bloomberg.data.schemas import BalanceSheet, CashFlow, Financials, IncomeStatement
 
 # yfinance does not return a currency field in fundamentals; derive from exchange code
@@ -25,6 +25,8 @@ def _int(v) -> int | None:
 
 
 def get_financials(ticker: Ticker, years: int = 4) -> Financials:
+    if ticker.is_china:
+        return tushare_provider.get_financials(ticker, years=years)
     if ticker.is_us:
         try:
             return _from_fmp(ticker, years)
