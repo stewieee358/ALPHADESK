@@ -24,14 +24,22 @@ class DES(BloombergFunction):
             except Exception:
                 pass
 
-            # Augment with PE and EV/EBITDA from yfinance
-            try:
-                import yfinance as yf
-                info = yf.Ticker(t.yfinance_symbol).info
-                data["pe_ratio"] = info.get("trailingPE")
-                data["ev_to_ebitda"] = info.get("enterpriseToEbitda")
-            except Exception:
-                pass
+            # Augment with provider-native valuation metrics.
+            if t.is_china:
+                try:
+                    from mini_bloomberg.data.providers.tushare_provider import get_daily_metrics
+                    data.update({k: v for k, v in get_daily_metrics(t).items()
+                                 if k in {"pe_ratio", "pb_ratio", "ps_ratio"}})
+                except Exception:
+                    pass
+            else:
+                try:
+                    import yfinance as yf
+                    info = yf.Ticker(t.yfinance_symbol).info
+                    data["pe_ratio"] = info.get("trailingPE")
+                    data["ev_to_ebitda"] = info.get("enterpriseToEbitda")
+                except Exception:
+                    pass
 
             return {"status": "ok", "data": data}
         except MiniBloombergError as e:
