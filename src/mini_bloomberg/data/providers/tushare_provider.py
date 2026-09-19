@@ -1,6 +1,6 @@
 """Tushare Pro provider for mainland-China equities.
 
-The provider maps Tushare's native data frames into Mini-Bloomberg's common
+The provider maps Tushare's native data frames into ALPHADESK's common
 Pydantic schemas. Credentials and an optional compatible gateway are read from
 the normal application settings, so Web, CLI and notebooks use one setup.
 """

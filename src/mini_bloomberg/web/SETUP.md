@@ -1,4 +1,4 @@
-# Mini-Bloomberg Web UI — Setup Guide
+# ALPHADESK Web UI — Setup Guide
 
 ## What's included
 

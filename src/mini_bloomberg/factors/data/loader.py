@@ -16,7 +16,7 @@ class DataLoader:
         self.api_url = api_url
 
         # Keep explicit arguments as the highest-priority configuration while
-        # allowing normal Mini-Bloomberg usage to read credentials from .env.
+        # allowing normal ALPHADESK usage to read credentials from .env.
         if self.source == "tushare" and (not self.token or not self.api_url):
             from mini_bloomberg.config import get_settings
             settings = get_settings()

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>MINI-BLOOMBERG // Web Terminal</title>
+<title>ALPHADESK // Web Terminal</title>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600;700&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/marked@9/marked.min.js"></script>
 <style>
@@ -401,7 +401,7 @@
     letter-spacing: 0.5px;
   }
 
-  .cmd-echo::before { content: 'MINI-BB> '; color: var(--yellow); font-weight: 700; }
+  .cmd-echo::before { content: 'ALPHADESK> '; color: var(--yellow); font-weight: 700; }
 
   .output-error {
     color: var(--red);
@@ -800,7 +800,7 @@
 
 <!-- TOP BAR -->
 <div id="topbar">
-  <div id="topbar-logo">MINI-BLOOMBERG</div>
+  <div id="topbar-logo">ALPHADESK</div>
   <div id="topbar-subtitle">Web Terminal</div>
   <div id="topbar-meta">
     <span>OpenBB · FMP · Claude</span>
@@ -810,7 +810,7 @@
 
 <!-- COMMAND BAR -->
 <div id="cmdbar">
-  <div id="cmdbar-label">MINI-BB&gt;</div>
+  <div id="cmdbar-label">ALPHADESK&gt;</div>
   <div id="cmd-input-wrap">
     <input id="cmd-input" type="text" autocomplete="off" spellcheck="false"
       placeholder="AAPL US Equity | DES | FA | ? ask AI...">
@@ -898,7 +898,7 @@
     <div id="result-body">
       <div id="output">
         <div class="welcome-screen">
-          <div class="welcome-logo">MINI-BLOOMBERG</div>
+          <div class="welcome-logo">ALPHADESK</div>
           <div class="welcome-sub">BUSINESS ANALYSIS TERMINAL</div>
           <div class="welcome-help" id="welcome-help">
             <div class="help-card" onclick="setCmd('AAPL US Equity')">
@@ -971,7 +971,7 @@
   <div class="sb-item"><span class="sb-label">STATUS</span><span class="sb-val active" id="sb-status">READY</span></div>
   <div class="sb-item"><span class="sb-label">CMD</span><span class="sb-val" id="sb-cmd">—</span></div>
   <div class="sb-item"><span class="sb-label">API</span><span class="sb-val" id="sb-api">—</span></div>
-  <div style="margin-left:auto;" class="sb-item"><span class="sb-val">MINI-BLOOMBERG v0.1 // WEB UI</span></div>
+  <div style="margin-left:auto;" class="sb-item"><span class="sb-val">ALPHADESK v0.1 // WEB UI</span></div>
 </div>
 
 <script>
@@ -2237,7 +2237,7 @@ async function executeCommand(raw) {
     showOutput(`<div class="output-block">
       <div class="cmd-echo">${escHtml(cmd)}</div>
       <div class="output-error">
-        <strong>Connection error</strong> — could not reach the Mini-Bloomberg backend.<br><br>
+        <strong>Connection error</strong> — could not reach the ALPHADESK backend.<br><br>
         <span style="color:var(--text3)">Make sure the FastAPI server is running on port 8000:</span><br>
         <span style="color:var(--cyan)">uvicorn mini_bloomberg.web.server:app --reload</span><br><br>
         <span style="color:var(--text3)">Raw error: ${escHtml(String(err))}</span>
@@ -2273,7 +2273,7 @@ function renderHelp() {
     `<tr><td style="color:var(--yellow);white-space:nowrap">${cmd}</td><td>${desc}</td><td style="color:var(--cyan);white-space:nowrap">${ex}</td></tr>`
   ).join('');
   return `<div class="output-block">
-    <div class="output-header">HELP — MINI-BLOOMBERG COMMANDS</div>
+    <div class="output-header">HELP — ALPHADESK COMMANDS</div>
     <table class="output-table">
       <thead><tr><th>Command</th><th>Description</th><th>Example</th></tr></thead>
       <tbody>${tbody}</tbody>

@@ -8,7 +8,7 @@ Rules and context for Claude Code to follow while building this project. Read th
 
 ---
 
-## Project: Mini-Bloomberg
+## Project: ALPHADESK
 
 A CLI terminal that mimics Bloomberg for equity and FX analysis, powered by OpenBB + FMP + yfinance for data and Claude as the natural-language orchestrator.
 

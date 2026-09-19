@@ -9,7 +9,7 @@ import typer
 
 app = typer.Typer(
     name="mini-bb",
-    help="Mini-Bloomberg Terminal — equity analysis powered by Claude.",
+    help="ALPHADESK Terminal — equity analysis powered by Claude.",
     add_completion=False,
 )
 
@@ -68,7 +68,7 @@ def comp(
 
 @app.callback(invoke_without_command=True)
 def _repl_fallback(ctx: typer.Context) -> None:
-    """Launch the Mini-Bloomberg REPL when called with no subcommand."""
+    """Launch the ALPHADESK REPL when called with no subcommand."""
     if ctx.invoked_subcommand is None:
         from mini_bloomberg.cli.repl import run_repl
         run_repl()

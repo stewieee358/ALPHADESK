@@ -59,7 +59,7 @@ def obb_get(fn, **kwargs) -> dict | None:
 
 def main() -> None:
     symbol = "AAPL"
-    print(f"Mini-Bloomberg — Milestone 1 Full Field Probe ({symbol})")
+    print(f"ALPHADESK — Milestone 1 Full Field Probe ({symbol})")
     print(f"FMP key configured: {bool(FMP_KEY and FMP_KEY != 'your_fmp_key_here')}\n")
 
     if not FMP_KEY or FMP_KEY == "your_fmp_key_here":

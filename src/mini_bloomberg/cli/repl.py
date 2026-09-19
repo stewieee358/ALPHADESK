@@ -52,14 +52,14 @@ def _rprompt() -> HTML:
 
 
 def _prompt_text() -> HTML:
-    return HTML('<prompt>MINI-BB&gt; </prompt>')
+    return HTML('<prompt>ALPHADESK&gt; </prompt>')
 
 
 # ── Banner ────────────────────────────────────────────────────────────────────
 
 def _print_banner() -> None:
     banner = Text()
-    banner.append("  MINI-BLOOMBERG  ", style="bold black on bright_yellow")
+    banner.append("  ALPHADESK  ", style="bold black on bright_yellow")
     banner.append("  Equity Analysis Terminal  ", style="bold bright_white on black")
     console.print()
     console.print(banner)

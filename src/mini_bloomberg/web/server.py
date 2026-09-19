@@ -1,5 +1,5 @@
 """
-FastAPI web server for Mini-Bloomberg.
+FastAPI web server for ALPHADESK.
 
 Bridges the existing CLI/function layer to a REST API consumed by index.html.
 
@@ -26,7 +26,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 # ── App ────────────────────────────────────────────────────────────────────────
-app = FastAPI(title="Mini-Bloomberg Web API", version="0.1.0")
+app = FastAPI(title="ALPHADESK Web API", version="0.1.0")
 
 # Allow all origins during development (tighten in production)
 app.add_middleware(
@@ -204,7 +204,7 @@ async def serve_ui():
         if p.exists():
             return FileResponse(str(p))
     return HTMLResponse(
-        "<h1>Mini-Bloomberg</h1>"
+        "<h1>ALPHADESK</h1>"
         "<p>Place <code>index.html</code> in <code>src/mini_bloomberg/web/static/</code>.</p>",
         status_code=200,
     )
@@ -243,7 +243,7 @@ async def translate_introduction(req: TranslationRequest):
 @app.post("/api/command")
 async def run_command(req: CommandRequest):
     """
-    Execute a Mini-Bloomberg command and return structured JSON.
+    Execute a ALPHADESK command and return structured JSON.
 
     Handles:
     - Ticker loading: "AAPL US Equity"
@@ -270,7 +270,7 @@ async def run_command(req: CommandRequest):
     except ImportError as e:
         raise HTTPException(
             status_code=503,
-            detail=f"Mini-Bloomberg package not installed: {e}. "
+            detail=f"ALPHADESK package not installed: {e}. "
                    "Run: pip install -e . inside the MINIBB directory.",
         )
 

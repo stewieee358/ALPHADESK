@@ -330,7 +330,7 @@ def _render_help() -> None:
         ("? <query>",          "Ask the AI analyst a question",        "? compare NVDA AMD <GO>"),
         ("CLEAR HISTORY <GO>", "Wipe AI analyst conversation memory",  "CLEAR HISTORY <GO>"),
         ("HELP <GO>",          "Show this help screen",                "HELP <GO>"),
-        ("QUIT <GO>",          "Exit Mini-Bloomberg",                  "QUIT <GO>"),
+        ("QUIT <GO>",          "Exit ALPHADESK",                  "QUIT <GO>"),
     ]
     for row in rows:
         t.add_row(*row)
@@ -338,7 +338,7 @@ def _render_help() -> None:
     console.print()
     console.print(Panel(
         t,
-        title=f"[{ORANGE}]HELP[/{ORANGE}]  [{HEADER}]Mini-Bloomberg Commands[/{HEADER}]",
+        title=f"[{ORANGE}]HELP[/{ORANGE}]  [{HEADER}]ALPHADESK Commands[/{HEADER}]",
         border_style="yellow",
         padding=(1, 2),
     ))

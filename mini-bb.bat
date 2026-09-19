@@ -1,10 +1,10 @@
 @echo off
-title Mini-Bloomberg Launcher
+title ALPHADESK Launcher
 cd /d "%~dp0"
 set counter=0
 
 echo.
-echo   Mini-Bloomberg
+echo   ALPHADESK
 echo   ==============
 echo.
 
@@ -28,7 +28,7 @@ if %errorlevel%==0 (
 
 REM -- Start server -----------------------------------------------------------
 echo   Starting server...
-start "Mini-Bloomberg Server" /min cmd /c "uv run uvicorn mini_bloomberg.web.server:app --port 8000"
+start "ALPHADESK Server" /min cmd /c "uv run uvicorn mini_bloomberg.web.server:app --port 8000"
 
 REM -- Poll until ready (max 20 s) --------------------------------------------
 echo   Waiting for server to be ready...
@@ -44,7 +44,7 @@ goto :waitloop
 :timeout
 echo.
 echo   ERROR: Server did not start within 20 seconds.
-echo   Check the "Mini-Bloomberg Server" window for error details.
+echo   Check the "ALPHADESK Server" window for error details.
 echo.
 pause
 exit /b 1
@@ -54,7 +54,7 @@ echo.
 echo   Ready!  Opening http://localhost:8000
 echo.
 start "" "http://localhost:8000"
-echo   The server is running in the "Mini-Bloomberg Server" window.
+echo   The server is running in the "ALPHADESK Server" window.
 echo   Close that window (or press Ctrl+C in it) to stop the server.
 echo.
 pause

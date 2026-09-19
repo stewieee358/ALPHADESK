@@ -1,10 +1,10 @@
-# MINIBB-V2 — Mini-Bloomberg
+# ALPHADESK
 
 A Bloomberg-style CLI and web terminal for equity, FX, and quantitative factor research, powered by **OpenBB + FMP + yfinance + Tushare Pro** for data and **Claude** as a natural-language orchestrator.
 
 ```
 ╭─────────────────────────────────────────────────────────────────────────────╮
-│  MINI-BLOOMBERG  Equity & FX Analysis Terminal                              │
+│  ALPHADESK  Equity & FX Analysis Terminal                              │
 │                                                                             │
 │  Equity: DES / FA / GP / ANR / COMP / RV / RPT / NEWS / DCF / QTR          │
 │  Factors: ALPHA / Operator List / Data Coverage                            │
@@ -14,17 +14,17 @@ A Bloomberg-style CLI and web terminal for equity, FX, and quantitative factor r
 │  Run in terminal (CLI) or browser (Web UI at localhost:8000)                │
 ╰─────────────────────────────────────────────────────────────────────────────╯
 
-MINI-BB> AAPL US Equity <GO>
+ALPHADESK> AAPL US Equity <GO>
 Security loaded: AAPL US Equity
 
-MINI-BB> DES <GO>
+ALPHADESK> DES <GO>
 ╭─────────────────────── DES  Apple Inc.  AAPL ─────────────────────────────╮
 │  Name        Apple Inc.    Market Cap    $3.87T                            │
 │  Sector      Technology    Beta          1.109                             │
 │  Exchange    NMS           Dividend Yld  0.39%                             │
 ╰────────────────────────────────────────────────────────────────────────────╯
 
-MINI-BB> ? compare NVDA and AMD profitability <GO>
+ALPHADESK> ? compare NVDA and AMD profitability <GO>
 ╭──────────────────────────────── AI Analyst ────────────────────────────────╮
 │  NVDA wins on every metric — by a wide margin. Gross margin 71% vs 49%.   │
 │  NVDA generated more FCF ($96.7B) than AMD's entire revenue ($34.6B)...   │
@@ -207,8 +207,8 @@ GitHub Actions runs the same unit test suite on pushes and pull requests.
 ### 2. Install
 
 ```bash
-git clone https://github.com/stewieee358/MINIBB-V2.git MINIBB
-cd MINIBB
+git clone https://github.com/stewieee358/ALPHADESK.git ALPHADESK
+cd ALPHADESK
 uv sync --locked --extra dev
 ```
 
@@ -236,7 +236,7 @@ your local `.env`; only the placeholder `.env.example` belongs in Git.
 
 #### Tushare Pro setup for A-shares
 
-Mini-Bloomberg reads the Tushare credentials from the project-root `.env` file.
+ALPHADESK reads the Tushare credentials from the project-root `.env` file.
 The same configuration is used by the CLI, Web UI, and Python/Jupyter code.
 Create `.env` from the template, then set:
 
@@ -425,7 +425,7 @@ Start the FastAPI server (`uv run uvicorn mini_bloomberg.web.server:app --reload
 
 ```
 ┌──────────────────────────────────────────────────────────────────┐
-│  ◼ MINI-BLOOMBERG                              [status bar]      │
+│  ◼ ALPHADESK                              [status bar]      │
 ├──────────────────────────────────────────────────────────────────┤
 │  Command bar:  AAPL US Equity <GO>    [Enter to execute]         │
 ├────────────┬────────────────────────────────┬────────────────────┤
@@ -577,9 +577,9 @@ The agent uses **prompt caching** on the system prompt and **streaming output** 
 within each session. This is not durable storage across process restarts.
 
 ```
-MINI-BB> ? what is AAPL's revenue trend? <GO>
-MINI-BB> ? how does that compare to MSFT? <GO>    ← agent references AAPL context
-MINI-BB> CLEAR HISTORY <GO>                        ← wipe memory for a fresh start
+ALPHADESK> ? what is AAPL's revenue trend? <GO>
+ALPHADESK> ? how does that compare to MSFT? <GO>    ← agent references AAPL context
+ALPHADESK> CLEAR HISTORY <GO>                        ← wipe memory for a fresh start
 ```
 
 | `.env` variable | Default | Effect |

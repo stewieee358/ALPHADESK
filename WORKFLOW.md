@@ -1,6 +1,6 @@
 # End-to-End Workflow
 
-This document explains the **complete data journey** in Mini-Bloomberg: where data comes from, how it's processed, and how it reaches the user's screen. Read this first to understand the architecture before any code.
+This document explains the **complete data journey** in ALPHADESK: where data comes from, how it's processed, and how it reaches the user's screen. Read this first to understand the architecture before any code.
 
 ---
 
@@ -135,7 +135,7 @@ app = typer.Typer()
 
 @app.command()
 def main():
-    """Launch the Mini-Bloomberg REPL."""
+    """Launch the ALPHADESK REPL."""
     from .repl import run_repl
     run_repl()
 ```
@@ -155,7 +155,7 @@ completer = WordCompleter(["DES", "FA", "GP", "ANR", "COMP", "HELP", "QUIT"])
 session = PromptSession(completer=completer)
 
 while True:
-    user_input = session.prompt("MINI-BB> ")
+    user_input = session.prompt("ALPHADESK> ")
     # ... dispatch
 ```
 
